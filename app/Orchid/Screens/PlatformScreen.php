@@ -61,7 +61,7 @@ class PlatformScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'Корпоративный веб-портал АО "Озенмунайгаз"';
+        return 'Корпоративный веб-портал АО "ОзенМунайСервис"';
     }
 
     /**
@@ -112,7 +112,7 @@ class PlatformScreen extends Screen
         $structures = OrganizationStructure::whereNull('parent_id')
             ->with('children')
             ->get();
-
+        $v = [];
         foreach ($structures as $structure) {
             $v['labels'][] = $structure->name_ru;
             $v['values'][] = $structure->totalSotrudnikCount();
@@ -130,6 +130,7 @@ class PlatformScreen extends Screen
             ->with('children')
             ->get();
 
+        $s = [];
         foreach ($structures as $structure) {
             $s['labels'][] = $structure->name_ru;
             $s['values'][] = $structure->totalRegisteredSotrudnikCount();

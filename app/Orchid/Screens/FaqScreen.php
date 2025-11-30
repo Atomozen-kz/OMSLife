@@ -6,7 +6,7 @@ use App\Models\Faq;
 use App\Models\FaqsCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Orchid\Platform\Models\User;
+use App\Models\User;
 use Orchid\Screen\Actions\ModalToggle;
 use Orchid\Screen\Fields\CheckBox;
 use Orchid\Screen\Fields\Input;
