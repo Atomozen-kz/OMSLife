@@ -1,0 +1,31 @@
+# name: Deploy to Server
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+    
+#     steps:
+#       - name: Deploy to server
+#         env:
+#           DEPLOY_SERVER: ${{ secrets.DEPLOY_SERVER }}
+#           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+#           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+#           DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+#         run: |
+#           echo "$DEPLOY_KEY" > deploy_key
+#           chmod 600 deploy_key
+#           ssh -i deploy_key -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_SERVER << 'EOF'
+#             cd $DEPLOY_PATH
+#             git reset --hard
+#             git checkout main
+#             git pull origin main
+#             php artisan config:cache
+#             php artisan route:cache
+#             php artisan view:cache
+#             php artisan optimzie
+#           EOF

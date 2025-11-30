@@ -1,0 +1,685 @@
+<?php
+
+namespace App\Orchid\Screens;
+
+use App\Models\Sotrudniki;
+use App\Models\TrainingRecord;
+use App\Models\TrainingType;
+use App\Models\User;
+use App\Orchid\Filters\TrainingExpireBoolFilter;
+use App\Orchid\Filters\TrainingExpiryFilter;
+use App\Orchid\Filters\TrainingOrgFilter;
+use App\Orchid\Filters\TrainingTypeFilter;
+use App\Orchid\Layouts\TrainingRecordSelection;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Facades\Excel;
+use Orchid\Screen\Actions\Link;
+use Orchid\Screen\Actions\ModalToggle;
+use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\Relation;
+use Orchid\Screen\Fields\Select;
+use Orchid\Screen\Fields\DateTimer;
+use Orchid\Screen\Layouts\Modal;
+use Orchid\Screen\Screen;
+use Orchid\Screen\TD;
+use Orchid\Support\Facades\Alert;
+use Orchid\Support\Facades\Layout;
+use Orchid\Support\Facades\Toast;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
+
+class TrainingCenterScreen extends Screen
+{
+    /**
+     * Fetch data to be displayed on the screen.
+     *
+     * @return array
+     */
+    public $trainingTypes;
+
+    public function query(): iterable
+    {
+        $this->trainingTypes = TrainingType::all();
+
+        $lastYear = Carbon::now()->subYear()->year;
+
+        // Получаем статистику с заполненными данными
+        $statistics = TrainingRecord::query()
+            ->whereYear('completion_date', $lastYear)
+            ->selectRaw('id_training_type, COUNT(*) as total')
+            ->groupBy('id_training_type')
+            ->with('trainingType:id,name_ru,name_kz')
+            ->get();
+
+        // Преобразуем статистику в формат ключ-значение
+        $metrics = $statistics->mapWithKeys(function ($record) {
+            return [$record->trainingType->name_ru => $record->total];
+        })->toArray();
+
+        // Дополняем метрики нулями для всех типов обучения
+        $metricsWithDefaults = $this->trainingTypes->pluck('name_ru')->mapWithKeys(function ($name) use ($metrics) {
+            return [$name => $metrics[$name] ?? 0];
+        })->toArray();
+
+        // Получаем уникальные ID записей по указанным столбцам
+        $uniqueIds = TrainingRecord::select('id')
+            ->whereRaw('id = (SELECT MIN(id) FROM training_records as tr
+                 WHERE tr.validity_date = training_records.validity_date
+                 AND tr.completion_date = training_records.completion_date
+                 AND tr.certificate_number = training_records.certificate_number
+                 AND tr.protocol_number = training_records.protocol_number
+                 AND tr.id_sotrudnik = training_records.id_sotrudnik
+                 AND tr.id_training_type = training_records.id_training_type)')
+            ->filters()
+            ->filtersApply([
+                TrainingTypeFilter::class,
+                TrainingExpiryFilter::class,
+                TrainingOrgFilter::class,
+                TrainingExpireBoolFilter::class
+            ])
+            ->pluck('id');
+
+
+        // Загружаем записи с подгрузкой отношений, исключая дубликаты
+        $trainingRecords = TrainingRecord::with(['trainingType', 'sotrudnik'])
+            ->whereIn('id', $uniqueIds)
+            ->paginate();
+
+        return [
+            'trainingRecords' => $trainingRecords,
+            'trainingTypes' => $this->trainingTypes,
+            'metricsType' => $metricsWithDefaults
+        ];
+    }
+
+
+    /**
+     * The name of the screen displayed in the header.
+     *
+     * @return string|null
+     */
+    public function name(): ?string
+    {
+        return 'Корпоративный учебный центр';
+    }
+
+    public function commandBar(): iterable
+    {
+        $filterValues = request()->query();
+        $commandBar = [
+            ModalToggle::make('Добавить запись обучения')
+                ->modal('addOrUpdateRecordModal')
+                ->method('saveRecord')
+                ->icon('plus'),
+            Link::make('Скачать XLSX')
+                ->icon('cloud-download')
+                ->route('training.export', $filterValues),
+        ];
+
+        if (Auth::user()->hasAccess('platform.training-center-admin')) {
+            $commandBar[] = ModalToggle::make('Импорт данных об обучение')
+                ->modal('importTrainingModal')
+                ->method('importExcel')
+                ->icon('database');
+            $commandBar[] = ModalToggle::make('Показать типы обучение')
+                ->modal('showTypesModal')
+                ->icon('book');
+        }
+
+        return $commandBar;
+    }
+
+
+    /**
+     * The screen's layout elements.
+     *
+     * @return array
+     */
+    public function layout(): array
+    {
+//        $metricsTypeLayout = array();
+//        foreach ($this->trainingTypes as $type) {
+//            $metricsTypeLayout[] =
+//                [
+//                    $type->name_ru => 'metricsType.'.$type->id
+//                ];
+//        }
+//        dd($metricsTypeLayout);
+        return [
+            Layout::view('partials.h5_text', ['text' => 'Статистика обучения за 2024 год']),
+            Layout::metrics(
+                $this->trainingTypes->pluck('name_ru')->mapWithKeys(function ($name) {
+                    return [$name => "metricsType.$name"];
+                })->toArray()
+            ),
+
+            TrainingRecordSelection::class,
+
+
+            // Таблица с данными о прохождении обучения
+            Layout::table('trainingRecords', [
+                TD::make('sotrudnik.fio', 'ФИО')
+                    ->render(function (TrainingRecord $record) {
+                        return "{$record->sotrudnik->last_name} {$record->sotrudnik->first_name} {$record->sotrudnik->father_name}";
+                    }),
+
+                TD::make('type.name_ru', 'Тип обучения')
+                    ->render(fn(TrainingRecord $record) => $record->trainingType->name_ru),
+
+                TD::make('certificate_number', 'Номер сертификата'),
+
+                TD::make('protocol_number', 'Номер протокола'),
+
+                TD::make('completion_date', 'Дата прохождения')
+                    ->render(fn(TrainingRecord $record) => $record->completion_date->format('d.m.Y')),
+
+                TD::make('validity_date', 'Дата окончение')
+                    ->render(fn(TrainingRecord $record) => $record->validity_date->format('d.m.Y')),
+
+                TD::make('left_days', 'Осталось дней')
+                    ->render(function (TrainingRecord $record) {
+                        if ($record->validity_date->timestamp > now()->timestamp) {
+                            // Разница от текущего момента до даты окончания сертификата
+                            return now()->diffForHumans($record->validity_date, true);
+                        } else {
+                            return 'просрочено';
+                        }
+                    }),
+            ]),
+
+            // Модальное окно для добавления записи
+            Layout::modal('addOrUpdateRecordModal', [
+                Layout::rows([
+                    Select::make('record.id_training_type')
+                        ->title('Тип обучения')
+                        ->fromModel(TrainingType::class, 'name_ru', 'id')
+                        ->required(),
+
+                    Relation::make('record.id_sotrudnik')
+                        ->fromModel(Sotrudniki::class, 'last_name')
+                        ->displayAppend('fio')
+                        ->searchColumns('first_name', 'father_name', 'last_name')
+                        ->title('Напишите фамилию/имя/отечество сотрудника')
+                        ->required(),
+
+                    Input::make('record.certificate_number')
+                        ->title('Номер сертификата'),
+
+                    Input::make('record.protocol_number')
+                        ->title('Номер протокола'),
+
+                    DateTimer::make('record.completion_date')
+                        ->title('Дата прохождения')
+                        ->format('Y-m-d')
+                        ->required(),
+                ]),
+            ])
+                ->async('asyncGetTrainingRecords')
+                ->title('Добавить запись о прохождении')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена'),
+
+            // Модальное окно для отображения типов обучения
+            Layout::modal('showTypesModal', [
+                Layout::table('trainingTypes', [
+                    TD::make('name_ru', 'Название (RU)'),
+//                    TD::make('name_ru', 'Название (RU)'),
+                    TD::make('name_kz', 'Название (KZ)'),
+                    TD::make('validity_period', 'Срок годности (в месяцах)'),
+                    TD::make('type_code', 'type_code'),
+
+                    TD::make('Действия')->render(function (TrainingType $type) {
+                        return ModalToggle::make('Редактировать')
+                            ->modal('addOrUpdateTypeModal')
+                            ->modalTitle('Редактировать тип обучение')
+                            ->method('saveType')
+                            ->asyncParameters(['type' => $type->id])
+                            ->icon('pencil');
+                    })
+                ]),
+                Layout::rows([
+                    ModalToggle::make('Добавить тип обучение')
+                        ->modal('addOrUpdateTypeModal')
+                        ->modalTitle('Добавить тип обучение')
+                        ->method('saveType')
+                        ->icon('plus'),
+                ]),
+            ])->size(Modal::SIZE_LG)
+                ->withoutApplyButton()
+                ->title('Типы обучения')
+                ->applyButton('Закрыть'),
+
+            // Модальное окно для добавления типа обучения
+            Layout::modal('addOrUpdateTypeModal', [
+                Layout::rows([
+
+                    Input::make('type.id')->type('hidden'),
+
+                    Input::make('type.name_ru')
+                        ->title('Название (RU)')
+                        ->required(),
+
+                    Input::make('type.name_kz')
+                        ->title('Название (KZ)')
+                        ->required(),
+
+                    Input::make('type.validity_period')
+                        ->title('Срок годности (в месяцах)')
+                        ->type('number')
+                        ->required(),
+
+                    Input::make('type.type_code')
+                        ->title('type_code')
+                        ->required(),
+                ]),
+            ])
+                ->async('asyncGetTrainingType')
+                ->title('Добавить тип обучения')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена'),
+
+            //Модалное окно для импорта данных
+            Layout::modal('importTrainingModal', [
+                Layout::rows([
+                    Select::make('training_type_id')
+                        ->title('Тип обучения')
+                        ->fromModel(TrainingType::class, 'name_ru', 'id')
+                        ->required(),
+
+                    Input::make('file')
+                        ->type('file')
+                        ->title('Выберите файл')
+                        ->required(),
+                ]),
+            ])
+                ->title('Импорт данных о прохождении обучения')
+                ->applyButton('Импортировать')
+                ->closeButton('Отмена')
+        ];
+    }
+
+    public function asyncGetTrainingType(TrainingType $type)
+    {
+        return [
+            'type' => $type,
+        ];
+    }
+
+    public function asyncGetTrainingRecords(TrainingRecord $record)
+    {
+        return [
+            'record' => $record,
+        ];
+    }
+
+    /**
+     * Save a training record.
+     */
+    public function saveRecord(Request $request)
+    {
+        $data = $request->validate([
+            'record.id_training_type' => 'required|exists:training_types,id',
+            'record.id_sotrudnik' => 'required|exists:sotrudniki,id',
+            'record.certificate_number' => 'nullable|string',
+            'record.protocol_number' => 'nullable|string',
+            'record.completion_date' => 'required|date',
+        ]);
+
+        $completionDate = $data['record']['completion_date'];
+        $validityPeriod = TrainingType::find($data['record']['id_training_type'])->validity_period;
+
+        TrainingRecord::create([
+            'id_training_type' => $data['record']['id_training_type'],
+            'id_sotrudnik' => $data['record']['id_sotrudnik'],
+            'certificate_number' => $data['record']['certificate_number'] ?? null,
+            'protocol_number' => $data['record']['protocol_number'] ?? null,
+            'completion_date' => $completionDate,
+            'validity_date' => now()->parse($completionDate)->addMonths($validityPeriod),
+        ]);
+
+        Toast::info('Запись успешно добавлена.');
+    }
+
+    /**
+     * Save a training type.
+     */
+    public function saveType(Request $request)
+    {
+        $data = $request->validate([
+            'type.id' => 'nullable|integer',
+            'type.name_ru' => 'required|string',
+            'type.name_kz' => 'required|string',
+            'type.validity_period' => 'required|integer',
+            'type.type_code' => 'required|string',
+        ]);
+
+        $typeAttrs = $data['type'];
+        $typeId = $typeAttrs['id'] ?? null;
+        // не передаём id в атрибутах (может быть guarded)
+        unset($typeAttrs['id']);
+
+        if ($typeId) {
+            $type = TrainingType::find($typeId);
+            if ($type) {
+                $type->update($typeAttrs);
+            } else {
+                TrainingType::create($typeAttrs);
+            }
+        } else {
+            TrainingType::create($typeAttrs);
+        }
+
+        Toast::info('Тип обучения успешно добавлен.');
+    }
+
+    public function importExcel(Request $request)
+    {
+        $request->validate([
+            'training_type_id' => 'required|exists:training_types,id',
+            'file' => 'required|file|mimes:xlsx,xls',
+        ]);
+
+        $file = $request->file('file');
+        $filePath = $file->getRealPath();
+
+        // Загружаем файл Excel
+        $spreadsheet = IOFactory::load($filePath);
+        // Попытаемся автоматически найти лист с данными: ищем первую непустую ячейку в колонке B в первых 50 строк
+        $sheet = null;
+        $sheetCount = $spreadsheet->getSheetCount();
+        $startRowProbe = 5;
+        $probeRows = 50;
+        for ($si = 0; $si < $sheetCount; $si++) {
+            $s = $spreadsheet->getSheet($si);
+            for ($r = $startRowProbe; $r < $startRowProbe + $probeRows; $r++) {
+                $cell = $s->getCellByColumnAndRow(2, $r);
+                $val = $cell ? (string)$cell->getCalculatedValue() : '';
+                if (trim($val) !== '') {
+                    $sheet = $s;
+                    break 2;
+                }
+            }
+        }
+        // Если не нашли — используем первый лист как fallback
+        if ($sheet === null) {
+            $sheet = $spreadsheet->getSheet(0);
+        }
+
+        $trainingTypeId = $request->input('training_type_id');
+        $validatePeriodMonths = TrainingType::find($trainingTypeId)->validity_period;
+
+        $failedRows = [];
+
+        // Начинаем обработку строк
+        // Определяем реальную стартовую строку: ищем первую непустую в колонках B/I/J
+        $highestRow = (int)$sheet->getHighestRow();
+        $detectedStart = null;
+        $probeLimit = min($highestRow, 200); // не сканируем слишком глубоко
+        for ($r = 1; $r <= $probeLimit; $r++) {
+            $v2 = trim((string)$sheet->getCellByColumnAndRow(2, $r)->getCalculatedValue());
+            $v9 = trim((string)$sheet->getCellByColumnAndRow(9, $r)->getCalculatedValue());
+            $v10 = trim((string)$sheet->getCellByColumnAndRow(10, $r)->getCalculatedValue());
+            if ($v2 !== '' || $v9 !== '' || $v10 !== '') {
+                $detectedStart = $r;
+                break;
+            }
+        }
+        $startRow = $detectedStart ?? 5; // fallback на 5
+        $naideno = 0;
+        $ne_naideno = 0;
+        $parsedRows = 0;
+        $samples = [];
+
+        for ($row = $startRow; $row <= $highestRow; $row++) {
+            try {
+                // Читаем данные из ячеек (используем явную нумерацию столбцов: 2=B, 9=I, 10=J)
+                $fioCell = $sheet->getCellByColumnAndRow(2, $row);
+                $completionCell = $sheet->getCellByColumnAndRow(9, $row);
+                $protocolCell = $sheet->getCellByColumnAndRow(10, $row);
+
+                // Получаем вычисленное значение (формулы) и поддерживаем RichText
+                $fio = $fioCell ? $fioCell->getCalculatedValue() : null;
+                if ($fio instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                    $fio = $fio->getPlainText();
+                }
+
+                $completionDate = $completionCell ? $completionCell->getCalculatedValue() : null;
+                if ($completionDate instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                    $completionDate = $completionDate->getPlainText();
+                }
+
+                $protocolNumber = $protocolCell ? $protocolCell->getCalculatedValue() : null;
+                if ($protocolNumber instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+                    $protocolNumber = $protocolNumber->getPlainText();
+                }
+
+                // Если строка полностью пустая — пропускаем
+                if (empty(trim((string)$fio)) && empty(trim((string)$completionDate)) && empty(trim((string)$protocolNumber))) {
+                    continue;
+                }
+
+                $parsedRows++;
+                if (count($samples) < 10) {
+                    $samples[] = ['row' => $row, 'fio' => $fio, 'completion' => $completionDate, 'protocol' => $protocolNumber];
+                }
+
+                // Разделяем ФИО
+                $fioParts = preg_split('/\s+/', trim((string)$fio));
+                $lastName = $fioParts[0] ?? null;
+                $firstName = $fioParts[1] ?? null;
+                $fatherName = $fioParts[2] ?? null;
+
+                // Преобразуем дату
+                $parsedDate = null;
+                if (is_numeric($completionDate)) {
+                    $parsedDate = Date::excelToDateTimeObject($completionDate)->format('Y-m-d');
+                } else {
+                    $dateStr = trim((string)$completionDate);
+                    if ($dateStr !== '') {
+                        // Попытка парсинга формата d.m.Y или Y-m-d и общих строковых дат
+                        try {
+                            if (preg_match('/^\d{1,2}\.\d{1,2}\.\d{2,4}$/', $dateStr)) {
+                                $dt = \Carbon\Carbon::createFromFormat('d.m.Y', $dateStr);
+                                $parsedDate = $dt ? $dt->format('Y-m-d') : null;
+                            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateStr)) {
+                                $parsedDate = $dateStr;
+                            } else {
+                                $ts = strtotime($dateStr);
+                                if ($ts !== false && $ts > 0) {
+                                    $parsedDate = date('Y-m-d', $ts);
+                                }
+                            }
+                        } catch (\Exception $ex) {
+                            $parsedDate = null;
+                        }
+                     }
+                 }
+
+                if (!$parsedDate) {
+                    $failedRows[] = [
+                        'row' => $row,
+                        'error' => 'Неверный формат даты',
+                        'raw' => ['fio' => $fio, 'completion' => $completionDate],
+                    ];
+                    continue;
+                }
+
+                // Проверяем сотрудника
+                // Нормализуем ФИО для поиска: trim + mb_strtolower
+                $ln = $lastName ? mb_strtolower(trim($lastName)) : null;
+                $fn = $firstName ? mb_strtolower(trim($firstName)) : null;
+                $fan = $fatherName ? mb_strtolower(trim($fatherName)) : null;
+
+                $employeeQuery = Sotrudniki::query();
+                if ($ln !== null) {
+                    $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
+                }
+                if ($fn !== null) {
+                    $employeeQuery->whereRaw('LOWER(TRIM(first_name)) = ?', [$fn]);
+                }
+                // father_name может отсутствовать в файле — учитываем только если есть
+                if ($fan !== null && $fan !== '') {
+                    $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
+                }
+
+                $employee = $employeeQuery->first();
+
+                // Улучшенный поиск сотрудника: пробуем несколько перестановок ФИО и частичное совпадение для first_name
+                $foundEmployee = null;
+                $fioPartsClean = array_values(array_filter(array_map(function ($p) { return trim((string)$p); }, $fioParts)));
+                // возможные порядки индексов для [last, first, father]
+                $orders = [[0,1,2],[1,0,2],[0,2,1],[2,0,1]];
+                foreach ($orders as $order) {
+                    $ln = isset($fioPartsClean[$order[0]]) ? mb_strtolower($fioPartsClean[$order[0]]) : null;
+                    $fn = isset($fioPartsClean[$order[1]]) ? mb_strtolower($fioPartsClean[$order[1]]) : null;
+                    $fan = isset($fioPartsClean[$order[2]]) ? mb_strtolower($fioPartsClean[$order[2]]) : null;
+
+                    $employeeQuery = Sotrudniki::query();
+                    if ($ln !== null) {
+                        $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
+                    }
+                    if ($fn !== null) {
+                        // сначала точное совпадение
+                        $employeeQuery->whereRaw('LOWER(TRIM(first_name)) = ?', [$fn]);
+                    }
+                    if ($fan !== null && $fan !== '') {
+                        $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
+                    }
+
+                    $foundEmployee = $employeeQuery->first();
+                    if ($foundEmployee) {
+                        break;
+                    }
+
+                    // если не найдено, попробуем менее строгий вариант: first_name LIKE 'fn%'
+                    if ($ln !== null && $fn !== null) {
+                        $employeeQuery = Sotrudniki::query();
+                        $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
+                        $employeeQuery->whereRaw('LOWER(TRIM(first_name)) LIKE ?', [mb_strtolower($fn) . '%']);
+                        if ($fan !== null && $fan !== '') {
+                            $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
+                        }
+                        $foundEmployee = $employeeQuery->first();
+                        if ($foundEmployee) {
+                            break;
+                        }
+                    }
+                }
+
+                $employee = $foundEmployee;
+
+                if ($employee) {
+                    $naideno++;
+                    // Добавляем запись в training_records
+                    TrainingRecord::updateOrCreate([
+                        'id_training_type' => $trainingTypeId,
+                        'id_sotrudnik' => $employee->id,
+                        'completion_date' => $parsedDate,
+                    ], [
+                        'validity_date' => now()->parse($parsedDate)->addMonths($validatePeriodMonths),
+                        //'certificate_number' => $certificateNumber,
+                        'protocol_number' => $protocolNumber,
+                    ]);
+                } else {
+                    $ne_naideno++;
+                    // Добавляем запись в training_records_import
+                    DB::table('training_records_import')->insert([
+                        'last_name' => $lastName,
+                        'first_name' => $firstName,
+                        'father_name' => $fatherName,
+                        //'certificate_number' => $certificateNumber,
+                        'protocol_number' => $protocolNumber,
+                        'completion_date' => $parsedDate,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $failedRows[] = [
+                    'row' => $row,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        // Сохранение логов ошибок и итогов импорта в отдельный файл
+        $logData = [
+            'timestamp'    => now()->toDateTimeString(),
+            'found'        => $naideno,
+            'not_found'    => $ne_naideno,
+            'failed_rows'  => $failedRows,
+            'parsed_rows'  => $parsedRows,
+            'samples'      => $samples,
+        ];
+
+        $logPath = storage_path('logs/TrainingImportLog_' . now()->format('Y_m_d_H_i_s') . '.txt');
+        file_put_contents($logPath, json_encode($logData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        if (!empty($failedRows)) {
+            Alert::error('Импорт завершен с ошибками. Проверьте лог: ' . $logPath . '. Ошибка в строках: ' . implode(', ', array_column($failedRows, 'row')));
+        } else {
+            Alert::success('Импорт успешен. Найдено ' . $naideno . ' сотрудников, не найдено ' . $ne_naideno . ' сотрудников. Лог: ' . $logPath);
+        }
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $filterParams = $request->input('filters', []);
+
+        // Получаем записи с применением фильтров и подгруженными связями
+        $trainingRecords = \App\Models\TrainingRecord::filters($filterParams)
+            ->filtersApply([
+                TrainingTypeFilter::class,
+                TrainingExpiryFilter::class,
+                TrainingOrgFilter::class,
+                TrainingExpireBoolFilter::class
+            ])
+            ->with(['trainingType', 'sotrudnik'])
+            ->get();
+
+        // Удаляем дубликаты по набору полей
+        $uniqueRecords = $trainingRecords->unique(function ($record) {
+            return
+                $record->validity_date->format('Y-m-d') . '_' .
+                $record->completion_date->format('Y-m-d') . '_' .
+                $record->certificate_number . '_' .
+                $record->protocol_number . '_' .
+                $record->id_sotrudnik . '_' .
+                $record->id_training_type;
+        });
+
+        // Формируем массив данных для экспорта
+        $data = $uniqueRecords->map(function ($record) {
+
+            if ($record->validity_date->timestamp > now()->timestamp) {
+                $left = now()->diffForHumans($record->validity_date, true);
+            } else {
+                $left = 'просрочено';
+            }
+
+            return [
+                'ФИО'                => "{$record->sotrudnik->last_name} {$record->sotrudnik->first_name} {$record->sotrudnik->father_name}",
+                'Тип обучения'       => $record->trainingType->name_ru,
+                'Номер сертификата'  => $record->certificate_number,
+                'Номер протокола'    => $record->protocol_number,
+                'Дата прохождения'   => $record->completion_date->format('d.m.Y'),
+                'Дата окончания'     => $record->validity_date->format('d.m.Y'),
+                'Осталось дней'      => $left,
+            ];
+        })->toArray();
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\TrainingRecordArrayExport($data),
+            'training_records.xlsx'
+        );
+    }
+
+}
+

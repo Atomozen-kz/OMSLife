@@ -1,0 +1,437 @@
+{
+    "info": {
+        "_postman_id": "a8a1b8b1-0b1a-4b1a-8b1a-0b1a1b8b1a8b",
+        "name": "OMGLife - Bank Ideas V2",
+        "description": "API для модуля \"Банк Идей\" v2.\n\n**Аутентификация**\n\nВсе запросы требуют Bearer Token. Добавьте в заголовки `Authorization: Bearer {{api_token}}`.\n\n**Переменные**\n\n- `{{baseUrl}}`: Базовый URL вашего API (например, `http://127.0.0.1:8000`)\n- `{{api_token}}`: Ваш токен доступа.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Get All Ideas",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas?page=1&per_page=10&lang=ru",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas"
+                    ],
+                    "query": [
+                        {
+                            "key": "page",
+                            "value": "1",
+                            "description": "Номер страницы для пагинации."
+                        },
+                        {
+                            "key": "per_page",
+                            "value": "10",
+                            "description": "Количество идей на странице."
+                        },
+                        {
+                            "key": "lang",
+                            "value": "ru",
+                            "description": "Язык ответа ('ru' или 'kz')."
+                        }
+                    ]
+                },
+                "description": "Получает список всех опубликованных идей (новых версий, где `problem` не null) с пагинацией."
+            },
+            "response": []
+        },
+        {
+            "name": "Get My Ideas",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/my?page=1&per_page=10&lang=ru",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "my"
+                    ],
+                    "query": [
+                        {
+                            "key": "page",
+                            "value": "1"
+                        },
+                        {
+                            "key": "per_page",
+                            "value": "10"
+                        },
+                        {
+                            "key": "lang",
+                            "value": "ru"
+                        }
+                    ]
+                },
+                "description": "Получает список идей, созданных текущим пользователем."
+            },
+            "response": []
+        },
+        {
+            "name": "Get One Idea",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/one?id=1&lang=ru",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "one"
+                    ],
+                    "query": [
+                        {
+                            "key": "id",
+                            "value": "1",
+                            "description": "ID запрашиваемой идеи."
+                        },
+                        {
+                            "key": "lang",
+                            "value": "ru"
+                        }
+                    ]
+                },
+                "description": "Получает детальную информацию по одной идее, включая историю статусов."
+            },
+            "response": []
+        },
+        {
+            "name": "Create Idea",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "problem",
+                            "value": "Описание проблемы здесь",
+                            "type": "text"
+                        },
+                        {
+                            "key": "solution",
+                            "value": "Предлагаемое решение здесь",
+                            "type": "text"
+                        },
+                        {
+                            "key": "expected_effect",
+                            "value": "Ожидаемый эффект здесь",
+                            "type": "text"
+                        },
+                        {
+                            "key": "type_id",
+                            "value": "1",
+                            "type": "text"
+                        },
+                        {
+                            "key": "files[]",
+                            "type": "file",
+                            "src": []
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/store",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "store"
+                    ]
+                },
+                "description": "Создает новую идею. Поля `problem`, `solution`, `expected_effect`, `type_id` обязательны. Можно прикрепить файлы."
+            },
+            "response": []
+        },
+        {
+            "name": "Update Idea",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "key": "problem",
+                            "value": "Новое описание проблемы",
+                            "type": "text"
+                        },
+                        {
+                            "key": "solution",
+                            "value": "Новое решение",
+                            "type": "text"
+                        },
+                        {
+                            "key": "remove_files",
+                            "value": "1,2",
+                            "type": "text",
+                            "description": "ID файлов для удаления, через запятую."
+                        },
+                        {
+                            "key": "files[]",
+                            "type": "file",
+                            "src": [],
+                            "description": "Новые файлы для добавления."
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/update/1",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "update",
+                        "1"
+                    ]
+                },
+                "description": "Обновляет существующую идею. Можно изменять текстовые поля, удалять старые файлы и загружать новые. В URL нужно указать ID идеи. Метод POST, но для поддержки `form-data` используется `_method=PUT` если нужно, но контроллер настроен на POST."
+            },
+            "response": []
+        },
+        {
+            "name": "Delete Idea",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/remove/1",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "remove",
+                        "1"
+                    ]
+                },
+                "description": "Удаляет идею по ее ID."
+            },
+            "response": []
+        },
+        {
+            "name": "Get Idea Types",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/types?lang=ru",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "types"
+                    ],
+                    "query": [
+                        {
+                            "key": "lang",
+                            "value": "ru"
+                        }
+                    ]
+                },
+                "description": "Получает список всех доступных типов идей."
+            },
+            "response": []
+        },
+        {
+            "name": "Vote for Idea",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"id_idea\": 1,\n    \"vote\": \"up\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/vote",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "vote"
+                    ]
+                },
+                "description": "Голосовать за идею. `vote` может быть 'up' или 'down'."
+            },
+            "response": []
+        },
+        {
+            "name": "Add Comment",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"id_idea\": 1,\n    \"comment\": \"Отличная идея!\"\n}",
+                    "options": {
+                        "raw": {
+                            "language": "json"
+                        }
+                    }
+                },
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/comment",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "comment"
+                    ]
+                },
+                "description": "Добавляет комментарий к идее."
+            },
+            "response": []
+        },
+        {
+            "name": "Delete Comment",
+            "request": {
+                "method": "DELETE",
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Authorization",
+                        "value": "Bearer {{api_token}}"
+                    }
+                ],
+                "url": {
+                    "raw": "{{baseUrl}}/api/v2/bank-ideas/comment/remove/1",
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "path": [
+                        "api",
+                        "v2",
+                        "bank-ideas",
+                        "comment",
+                        "remove",
+                        "1"
+                    ]
+                },
+                "description": "Удаляет комментарий по его ID. Пользователь может удалить только свой комментарий."
+            },
+            "response": []
+        }
+    ]
+}
+

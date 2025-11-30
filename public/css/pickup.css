@@ -1,0 +1,288 @@
+/* Общие стили */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: sans-serif;
+    background-color: #f9f9f9;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Шапка */
+.header {
+    background-color: #1453a5;
+    color: #fff;
+    padding: 1rem;
+    text-align: center;
+}
+
+/* Основная часть */
+.main {
+    flex: 1;
+    padding-top: 1rem;
+}
+
+/* Футер */
+.footer {
+    background-color: #eee;
+    color: #333;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+/* Блоки логина */
+.login-container, .dashboard-container {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h2,
+.dashboard-container h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+/* Формы */
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-weight: 600;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.login-form .btn {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Сообщения */
+.alert {
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.alert-success {
+    background: #d1e7dd;
+    color: #0f5132;
+}
+
+/* Кнопки */
+.btn {
+    display: inline-block;
+    padding: 0.6rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    border: none;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: #1453a5;
+    color: #fff;
+}
+
+.btn-success {
+    background-color: #198754;
+    color: #fff;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+/* Дашборд */
+.open-status-block {
+    margin-bottom: 2rem;
+}
+
+.text-open {
+    color: green;
+    font-weight: bold;
+}
+
+.text-closed {
+    color: red;
+    font-weight: bold;
+}
+
+.status-form label {
+    margin-right: 1rem;
+}
+
+.logout-form {
+    margin-top: 2rem;
+}
+
+/* Выравнивание кнопки «Выйти» в шапке (справа) */
+.header {
+    background-color: #1453a5;
+    color: #fff;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between; /* Горизонтальное распределение */
+    align-items: center; /* Вертикальное выравнивание */
+}
+.logout-form-header {
+    margin: 0; /* убираем любые отступы, если нужно */
+}
+
+/* Стили тумблера (toggle switch) */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;  /* Ширина переключателя */
+    height: 26px; /* Высота переключателя */
+    margin-right: 1rem; /* Отступ справа, если нужно */
+}
+
+/* Скрытый чекбокс */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* «слайдер» */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px; /* Округлённые углы */
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+/* Если чекбокс отмечен, сдвигаем «бегунок» */
+input:checked + .slider {
+    background-color: #198754; /* Цвет переключателя (зелёный) */
+}
+
+input:checked + .slider:before {
+    transform: translateX(24px);
+}
+
+/* Стили для loader (spinner) */
+.loader {
+    border: 4px solid #f3f3f3; /* светло-серый */
+    border-top: 4px solid #3498db; /* синий */
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 10px; /* небольшой отступ слева */
+}
+
+/* Анимация вращения */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+.status-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.status-label {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.status-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.status-button {
+    width: 70px;
+    height: 115px;
+    background-color: #e0e0e0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+/* Цвета для активных кнопок */
+.status-button.active:nth-child(1) {
+    background-color: #FFFFFF;  /* Нет в наличии - Серый */
+}
+
+.status-button.active:nth-child(2) {
+    background-color: #FF0000;  /* Очень мало - Красный */
+}
+
+.status-button.active:nth-child(3) {
+    background-color: #FF7F00;  /* Мало - Оранжевый */
+}
+
+.status-button.active:nth-child(4) {
+    background-color: #FFDA00;  /* В наличии - Синий */
+}
+
+.status-button.active:nth-child(5) {
+    background-color: #48DD00;  /* Много - Зеленый */
+}
+
+.status-button.active:nth-child(6) {
+    background-color: #228A4C;  /* Очень много - Темно-зеленый */
+}
+
+/* Hover эффекты */
+.status-button:hover {
+    opacity: 0.8;
+}
+
