@@ -50,7 +50,7 @@ class PushKutsCommand extends Command
 
                     $message_data = [
                         'title' => 'Кәсіби біліктілік',
-                        'body' => "Құрметті {$recipient->sotrudnik->first_name}" . ($gender ? " $gender" : "") . ", Сіздің {$recipient->trainingType->name_kz} оқуыңыздың жарамдылық мерзімі $leftDays күннен аяқталады",
+                        'body' => "Құрметті {$recipient->sotrudnik->full_name}" . ($gender ? " $gender" : "") . ", Сіздің {$recipient->trainingType->name_kz} оқуыңыздың жарамдылық мерзімі $leftDays күннен аяқталады",
                         'image' => null,
                         'data' => [
                             'page' => '/education',
@@ -66,7 +66,7 @@ class PushKutsCommand extends Command
                     // Логируем отправленное сообщение
                     Log::channel('push')->info('Push notification sent KUTS', [
                         'recipient_id' => $recipient->id,
-                        'recipient_name' => "{$recipient->first_name} {$recipient->last_name}",
+                        'recipient_name' => $recipient->sotrudnik->full_name,
                         'message' => $message_data,
                         'timestamp' => now()->toDateTimeString(),
                     ]);

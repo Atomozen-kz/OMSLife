@@ -22,9 +22,7 @@ class Sotrudniki extends Authenticatable
 
 
     protected $fillable = [
-        'first_name',
-        'last_name',
-        'father_name',
+        'full_name',
         'birthdate',
         'iin',
         'tabel_nomer',
@@ -36,7 +34,6 @@ class Sotrudniki extends Authenticatable
         'fcm_token',
         'os',
         'photo_profile',
-        'is_payroll_slip_func',
         'gender',
         'lang',
         'is_imported',
@@ -48,9 +45,7 @@ class Sotrudniki extends Authenticatable
      * @var array
      */
     protected $allowedFilters = [
-        'last_name' => Where::class,
-        'first_name' => Where::class,
-        'father_name' => Where::class,
+        'full_name' => Where::class,
         'birthdate' => Where::class,
         'iin' => Where::class,
      ];
@@ -86,12 +81,7 @@ class Sotrudniki extends Authenticatable
 
     public function getFioAttribute(): string
     {
-        return trim($this->last_name . ' ' . $this->first_name . ' ' . $this->father_name);
-    }
-
-    public function getFullNameAttribute(): string
-    {
-        return trim($this->last_name . ' ' . $this->first_name . ' ' . $this->father_name);
+        return $this->full_name ?? '';
     }
 
 

@@ -167,7 +167,7 @@ class TrainingCenterScreen extends Screen
             Layout::table('trainingRecords', [
                 TD::make('sotrudnik.fio', 'ФИО')
                     ->render(function (TrainingRecord $record) {
-                        return "{$record->sotrudnik->last_name} {$record->sotrudnik->first_name} {$record->sotrudnik->father_name}";
+                        return $record->sotrudnik->full_name;
                     }),
 
                 TD::make('type.name_ru', 'Тип обучения')
@@ -203,9 +203,9 @@ class TrainingCenterScreen extends Screen
                         ->required(),
 
                     Relation::make('record.id_sotrudnik')
-                        ->fromModel(Sotrudniki::class, 'last_name')
-                        ->displayAppend('fio')
-                        ->searchColumns('first_name', 'father_name', 'last_name')
+                        ->fromModel(Sotrudniki::class, 'full_name')
+                        ->title('ФИО')
+                        ->searchColumns('full_name')
                         ->title('Напишите фамилию/имя/отечество сотрудника')
                         ->required(),
 
@@ -513,67 +513,17 @@ class TrainingCenterScreen extends Screen
 
                 // Проверяем сотрудника
                 // Нормализуем ФИО для поиска: trim + mb_strtolower
-                $ln = $lastName ? mb_strtolower(trim($lastName)) : null;
-                $fn = $firstName ? mb_strtolower(trim($firstName)) : null;
-                $fan = $fatherName ? mb_strtolower(trim($fatherName)) : null;
+                // Собираем полное имя для поиска
+                $fullNameSearch = trim("$lastName $firstName $fatherName");
+                $fullNameSearchLower = mb_strtolower($fullNameSearch);
 
-                $employeeQuery = Sotrudniki::query();
-                if ($ln !== null) {
-                    $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
+                // Пытаемся найти точное совпадение
+                $employee = Sotrudniki::whereRaw('LOWER(TRIM(full_name)) = ?', [$fullNameSearchLower])->first();
+
+                // Если не нашли, попробуем по частичному совпадению
+                if (!$employee) {
+                    $employee = Sotrudniki::whereRaw('LOWER(TRIM(full_name)) LIKE ?', ["%{$fullNameSearchLower}%"])->first();
                 }
-                if ($fn !== null) {
-                    $employeeQuery->whereRaw('LOWER(TRIM(first_name)) = ?', [$fn]);
-                }
-                // father_name может отсутствовать в файле — учитываем только если есть
-                if ($fan !== null && $fan !== '') {
-                    $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
-                }
-
-                $employee = $employeeQuery->first();
-
-                // Улучшенный поиск сотрудника: пробуем несколько перестановок ФИО и частичное совпадение для first_name
-                $foundEmployee = null;
-                $fioPartsClean = array_values(array_filter(array_map(function ($p) { return trim((string)$p); }, $fioParts)));
-                // возможные порядки индексов для [last, first, father]
-                $orders = [[0,1,2],[1,0,2],[0,2,1],[2,0,1]];
-                foreach ($orders as $order) {
-                    $ln = isset($fioPartsClean[$order[0]]) ? mb_strtolower($fioPartsClean[$order[0]]) : null;
-                    $fn = isset($fioPartsClean[$order[1]]) ? mb_strtolower($fioPartsClean[$order[1]]) : null;
-                    $fan = isset($fioPartsClean[$order[2]]) ? mb_strtolower($fioPartsClean[$order[2]]) : null;
-
-                    $employeeQuery = Sotrudniki::query();
-                    if ($ln !== null) {
-                        $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
-                    }
-                    if ($fn !== null) {
-                        // сначала точное совпадение
-                        $employeeQuery->whereRaw('LOWER(TRIM(first_name)) = ?', [$fn]);
-                    }
-                    if ($fan !== null && $fan !== '') {
-                        $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
-                    }
-
-                    $foundEmployee = $employeeQuery->first();
-                    if ($foundEmployee) {
-                        break;
-                    }
-
-                    // если не найдено, попробуем менее строгий вариант: first_name LIKE 'fn%'
-                    if ($ln !== null && $fn !== null) {
-                        $employeeQuery = Sotrudniki::query();
-                        $employeeQuery->whereRaw('LOWER(TRIM(last_name)) = ?', [$ln]);
-                        $employeeQuery->whereRaw('LOWER(TRIM(first_name)) LIKE ?', [mb_strtolower($fn) . '%']);
-                        if ($fan !== null && $fan !== '') {
-                            $employeeQuery->whereRaw('LOWER(TRIM(father_name)) = ?', [$fan]);
-                        }
-                        $foundEmployee = $employeeQuery->first();
-                        if ($foundEmployee) {
-                            break;
-                        }
-                    }
-                }
-
-                $employee = $foundEmployee;
 
                 if ($employee) {
                     $naideno++;
@@ -665,7 +615,7 @@ class TrainingCenterScreen extends Screen
             }
 
             return [
-                'ФИО'                => "{$record->sotrudnik->last_name} {$record->sotrudnik->first_name} {$record->sotrudnik->father_name}",
+                'ФИО'                => $record->sotrudnik->full_name,
                 'Тип обучения'       => $record->trainingType->name_ru,
                 'Номер сертификата'  => $record->certificate_number,
                 'Номер протокола'    => $record->protocol_number,

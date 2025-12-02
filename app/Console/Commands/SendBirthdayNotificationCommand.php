@@ -59,7 +59,7 @@ class SendBirthdayNotificationCommand extends Command
                 ? 'Құттықтаймыз!'
                 : 'Поздравляем!';
             if ($recipientLang == 'kz'){
-                $notification->mini_description = "Құрметті $recipient->first_name" . ($gender ? " $gender" : "") . ", Сізді $age жасыңызбен шын жүректен құттықтаймыз!";
+                $notification->mini_description = "Құрметті $recipient->full_name" . ($gender ? " $gender" : "") . ", Сізді $age жасыңызбен шын жүректен құттықтаймыз!";
             } else {
                 $lastDigit = $age % 10;
                 $lastTwoDigits = $age % 100;
@@ -71,7 +71,7 @@ class SendBirthdayNotificationCommand extends Command
                 } else {
                     $suffix = 'лет';
                 }
-                $notification->mini_description = "Уважаемый $recipient->first_name! Вам исполнилось $age $suffix!";
+                $notification->mini_description = "Уважаемый $recipient->full_name! Вам исполнилось $age $suffix!";
             }
             $notification->sended = 1;
             $notification->for_all = 0;
@@ -99,7 +99,7 @@ class SendBirthdayNotificationCommand extends Command
             // Логируем отправленное сообщение
             Log::channel('push')->info('Push notification sent', [
                 'recipient_id' => $recipient->id,
-                'recipient_name' => "{$recipient->first_name} {$recipient->last_name}",
+                'recipient_name' => $recipient->full_name,
                 'message' => $message_data,
                 'timestamp' => now()->toDateTimeString(),
             ]);

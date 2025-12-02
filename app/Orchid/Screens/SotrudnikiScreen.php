@@ -37,7 +37,7 @@ class SotrudnikiScreen extends Screen
     {
         return [
             'sotrudniki' => Sotrudniki::with(['organization', 'position'])
-                ->select('*', DB::raw("CONCAT(last_name, ' ', first_name, ' ', father_name) AS fio"))
+                ->select('*', DB::raw("full_name AS fio"))
                 ->filters()
                 ->filtersApply([SotrudnikiFioFilter::class])
                 ->paginate(),

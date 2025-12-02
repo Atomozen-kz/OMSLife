@@ -57,11 +57,7 @@ class SotrudnikiFioFilter extends Filter
             if (!empty($searchTerms)) {
                 $query->orWhere(function ($subQuery) use ($searchTerms) {
                     foreach ($searchTerms as $term) {
-                        $subQuery->where(function ($nameQuery) use ($term) {
-                            $nameQuery->where('last_name', 'like', "%{$term}%")
-                                ->orWhere('first_name', 'like', "%{$term}%")
-                                ->orWhere('father_name', 'like', "%{$term}%");
-                        });
+                        $subQuery->where('full_name', 'like', "%{$term}%");
                     }
                 });
             }

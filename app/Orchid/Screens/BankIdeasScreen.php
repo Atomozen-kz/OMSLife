@@ -146,7 +146,7 @@ class BankIdeasScreen extends Screen
                 }),
 
             TD::make('tags', 'Информация')->render(function (BankIdea $idea) {
-                       return "Автор: {$idea->author->last_name} {$idea->author->first_name} <br>Создано: {$idea->created_at->format('d.m.Y H:i')}";
+                       return "Автор: {$idea->author->full_name} <br>Создано: {$idea->created_at->format('d.m.Y H:i')}";
                    }),
 
                     TD::make('status', 'Статус')

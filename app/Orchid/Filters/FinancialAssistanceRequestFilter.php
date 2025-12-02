@@ -51,9 +51,7 @@ class FinancialAssistanceRequestFilter extends Filter
         if ($this->request->filled('filter.search')) {
             $search = $this->request->get('filter.search');
             $builder->whereHas('sotrudnik', function ($query) use ($search) {
-                $query->where('first_name', 'like', "%{$search}%")
-                      ->orWhere('last_name', 'like', "%{$search}%")
-                      ->orWhere('father_name', 'like', "%{$search}%");
+                $query->where('full_name', 'like', "%{$search}%");
             })->orWhere('id', 'like', "%{$search}%");
         }
 

@@ -21,7 +21,7 @@ class BankIdeaController extends Controller
         $page = $request->get('page', 1);
 
         $ideas = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile'
+            'author:id,full_name,photo_profile'
         ])
             ->withCount([
                 'votes as upvotes' => function ($query) {
@@ -50,8 +50,7 @@ class BankIdeaController extends Controller
                 'comments_count' => $idea->comments_count,
                 'author' => [
                     'id' => $idea->author->id,
-                    'first_name' => $idea->author->first_name,
-                    'last_name' => $idea->author->last_name,
+                    'full_name' => $idea->author->full_name,
                     'photo_profile' => $idea->author->photo_profile
                         ? Storage::disk('public')->url($idea->author->photo_profile) // Полный URL
                         : null
@@ -79,7 +78,7 @@ class BankIdeaController extends Controller
         $page = $request->get('page', 1);
 
         $ideas = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile',
+            'author:id,full_name,photo_profile',
             'files:id,id_idea,path_to_file' // Добавляем файлы
         ])
             ->withCount([
@@ -109,8 +108,7 @@ class BankIdeaController extends Controller
                 'comments_count' => $idea->comments_count,
                 'author' => [
                     'id' => $idea->author->id,
-                    'first_name' => $idea->author->first_name,
-                    'last_name' => $idea->author->last_name,
+                    'full_name' => $idea->author->full_name,
                     'photo_profile' => $idea->author->photo_profile
                         ? Storage::disk('public')->url($idea->author->photo_profile) // Полный URL
                         : null
@@ -145,10 +143,10 @@ class BankIdeaController extends Controller
         $sotrudnik = auth()->user(); // Текущий пользователь
 
         $idea = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile', // Уменьшенный автор
+            'author:id,full_name,photo_profile', // Уменьшенный автор
             'comments' => function ($query) use ($sotrudnik) {
                 $query->with([
-                    'author:id,first_name,last_name,photo_profile'
+                    'author:id,full_name,photo_profile'
                 ])->latest();
             },
             'files:id,id_idea,path_to_file'
@@ -183,8 +181,7 @@ class BankIdeaController extends Controller
             'my_self' => $idea->author->id == $sotrudnik->id,
             'author' => [
                 'id' => $idea->author->id,
-                'first_name' => $idea->author->first_name,
-                'last_name' => $idea->author->last_name,
+                'full_name' => $idea->author->full_name,
                 'photo_profile' => $idea->author->photo_profile ? Storage::disk('public')->url($idea->author->photo_profile) : null
             ],
             'comments' => $idea->comments->map(function ($comment) use ($sotrudnik) {
@@ -194,8 +191,7 @@ class BankIdeaController extends Controller
                     'created_at' => $comment->created_at,
                     'author' => [
                         'id' => $comment->author->id,
-                        'first_name' => $comment->author->first_name,
-                        'last_name' => $comment->author->last_name,
+                        'full_name' => $comment->author->full_name,
                         'photo_profile' => $comment->author->photo_profile ? Storage::disk('public')->url($comment->author->photo_profile) : null
                     ],
                     'can_delete' => $comment->id_sotrudnik === $sotrudnik->id // Может ли удалить
@@ -262,8 +258,7 @@ class BankIdeaController extends Controller
                 'my_self' => true, // Создал текущий пользователь
                 'author' => [
                     'id' => $sotrudnik->id,
-                    'first_name' => $sotrudnik->first_name,
-                    'last_name' => $sotrudnik->last_name,
+                    'full_name' => $sotrudnik->full_name,
                     'photo_profile' => $sotrudnik->photo_profile
                         ? Storage::disk('public')->url($sotrudnik->photo_profile)
                         : null
@@ -363,21 +358,19 @@ class BankIdeaController extends Controller
                 'my_self' => true,
                 'author' => [
                     'id' => $sotrudnik->id,
-                    'first_name' => $sotrudnik->first_name,
-                    'last_name' => $sotrudnik->last_name,
+                    'full_name' => $sotrudnik->full_name,
                     'photo_profile' => $sotrudnik->photo_profile
                         ? Storage::disk('public')->url($sotrudnik->photo_profile)
                         : null
                 ],
-                'comments' => $idea->comments()->with('author:id,first_name,last_name,photo_profile')->latest()->get()->map(function ($comment) use ($sotrudnik) {
+                'comments' => $idea->comments()->with('author:id,full_name,photo_profile')->latest()->get()->map(function ($comment) use ($sotrudnik) {
                     return [
                         'id' => $comment->id,
                         'comment' => $comment->comment,
                         'created_at' => $comment->created_at,
                         'author' => [
                             'id' => $comment->author->id,
-                            'first_name' => $comment->author->first_name,
-                            'last_name' => $comment->author->last_name,
+                            'full_name' => $comment->author->full_name,
                             'photo_profile' => $comment->author->photo_profile
                                 ? Storage::disk('public')->url($comment->author->photo_profile)
                                 : null
@@ -497,8 +490,7 @@ class BankIdeaController extends Controller
             'created_at' => $comment->created_at,
             'author' => [
                 'id' => $sotrudnik->id,
-                'first_name' => $sotrudnik->first_name,
-                'last_name' => $sotrudnik->last_name,
+                'full_name' => $sotrudnik->full_name,
                 'photo_profile' => $sotrudnik->photo_profile
                     ? Storage::disk('public')->url($sotrudnik->photo_profile) // Полный URL
                     : null

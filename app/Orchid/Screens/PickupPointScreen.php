@@ -152,9 +152,9 @@ class PickupPointScreen extends Screen
 //                        ->required(),
 
                     Relation::make('sotrudnik_id')
-                        ->fromModel(Sotrudniki::class, 'last_name')
-                        ->displayAppend('fio')
-                        ->searchColumns('first_name', 'father_name')
+                        ->fromModel(Sotrudniki::class, 'full_name')
+                        ->title('Сотрудник')
+                        ->searchColumns('full_name')
                         ->title('Напишите фамилию сотрудника'),
 
                     Input::make('code')

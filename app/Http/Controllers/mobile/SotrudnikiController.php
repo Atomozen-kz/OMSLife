@@ -117,7 +117,7 @@ class SotrudnikiController extends Controller
 
         return response()->json([
             'id' => $sotrudnik->id,
-            'fio' => $sotrudnik->last_name.' '.$sotrudnik->first_name.' '.$sotrudnik->father_name,
+            'fio' => $sotrudnik->full_name,
             'iin' => $sotrudnik->iin,
             'tabel_nomer' => $sotrudnik->tabel_nomer,
             'phone_number' => $sotrudnik->phone_number,
@@ -125,7 +125,6 @@ class SotrudnikiController extends Controller
             'child_organization' => $sotrudnik->organization->name_ru ?? 'Не указано',
             'position' => $sotrudnik->position->name_ru ?? 'Не указано',
             'photo_profile' => $sotrudnik->photo_profile ? Storage::disk('public')->url($sotrudnik->photo_profile) : null,
-            'is_payroll_slip_func' => $sotrudnik->is_payroll_slip_func,
             'gender' => $sotrudnik->gender ?? null,
             'lang' => $sotrudnik->lang ?? null,
             'birthday_show' => (bool) ($sotrudnik->birthday_show ?? true)
@@ -263,15 +262,14 @@ class SotrudnikiController extends Controller
                 ->where('birthday_show', 1)
                 ->whereMonth('birthdate', $today->month)
                 ->whereDay('birthdate', $today->day)
-                ->select('id', 'organization_id', 'last_name', 'first_name', 'birthdate', 'photo_profile')
+                ->select('id', 'organization_id', 'full_name', 'birthdate', 'photo_profile')
                 ->orderBy('birthdate', 'ASC')
                 ->get();
 
             $responseBirthdays = [];
             foreach ($whoBirthday as $index => $birthday) {
                 $responseBirthdays[$index]['id'] = $birthday['id'];
-                $responseBirthdays[$index]['last_name'] = $birthday['last_name'];
-                $responseBirthdays[$index]['first_name'] = $birthday['first_name'];
+                $responseBirthdays[$index]['full_name'] = $birthday['full_name'];
                 $responseBirthdays[$index]['age'] = Carbon::parse($birthday->birthdate)->age;
                 $organization = (new \App\Models\OrganizationStructure)->getFirstParentById($birthday['organization']['id']);
                 $responseBirthdays[$index]['organization_name'] = $organization[$langColumn];
@@ -304,7 +302,7 @@ class SotrudnikiController extends Controller
             $sotrudnik = auth()->user();
 
             $notification = new PushSotrudnikam();
-            $notification->title = $sotrudnik->last_name.' '.$sotrudnik->first_name;
+            $notification->title = $sotrudnik->full_name;
             $notification->mini_description = $validatedData['text'];
             $notification->sender_id = $sotrudnik->id;
             $notification->sended = 1;
@@ -332,7 +330,7 @@ class SotrudnikiController extends Controller
             // Логируем отправленное сообщение
             Log::channel('push')->info('Push notification sent CONGREGATION', [
                 'recipient_id' => $recipient->id,
-                'recipient_name' => "{$recipient->first_name} {$recipient->last_name}",
+                'recipient_name' => $recipient->full_name,
                 'message' => $message_data,
                 'timestamp' => now()->toDateTimeString(),
             ]);

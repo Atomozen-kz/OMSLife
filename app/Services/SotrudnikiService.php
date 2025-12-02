@@ -16,7 +16,7 @@ class SotrudnikiService{
     {
         // Поиск сотрудника в базе данных
         $sotrudniki = Sotrudniki::where('tabel_nomer', $data['tabel_nomer'])
-            ->whereRaw('LOWER(last_name) = ?', [strtolower($data['last_name'])])
+            ->whereRaw('LOWER(full_name) LIKE ?', ['%' . strtolower($data['last_name']) . '%'])
             ->get();
 
         if (!$sotrudniki) {

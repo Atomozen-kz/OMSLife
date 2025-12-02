@@ -82,6 +82,7 @@ class OrganizationStructureScreen extends Screen
             ModalToggle::make('Импортировать сотрудников')
                 ->modal('importModal')
                 ->method('importExcel')
+                ->parameters(['parent_id' => $this->parentId])
                 ->icon('cloud-upload'),
 
             Link::make('Должности')
@@ -182,11 +183,6 @@ class OrganizationStructureScreen extends Screen
 
             Layout::modal('importModal', [
                 Layout::rows([
-                    Select::make('parent_id')
-                        ->title('Выберите структуру')
-                        ->fromModel(OrganizationStructure::whereNull('parent_id'), 'name_ru', 'id')
-                        ->required(),
-
                     Input::make('file')
                         ->type('file')
                         ->title('Выберите файл')
@@ -221,14 +217,22 @@ class OrganizationStructureScreen extends Screen
                 continue; // Пропускаем строки без необходимых колонок
             }
 
-            // Обновляем или создаём записи на основе id
-            OrganizationStructure::updateOrCreate(
-                ['id' => trim($row['id'])], // Условие поиска по id
-                [
+            // Обновляем если существует, иначе создаём новую запись с указанным id
+            $id = (int)trim($row['id']);
+            $org = OrganizationStructure::find($id);
+            if ($org) {
+                $org->update([
                     'name_ru' => trim($row['name_ru']),
                     'name_kz' => trim($row['name_kz']),
-                ] // Обновляемые значения
-            );
+                ]);
+            } else {
+                $org = new OrganizationStructure([
+                    'name_ru' => trim($row['name_ru']),
+                    'name_kz' => trim($row['name_kz']),
+                ]);
+                $org->id = $id; // ручная установка первичного ключа
+                $org->save();
+            }
         }
 
         Toast::info('Импорт завершен.');
@@ -250,105 +254,182 @@ class OrganizationStructureScreen extends Screen
     public function importExcel(Excel $excel, Request $request)
     {
         $request->validate([
-            'parent_id' => 'required|exists:organization_structure,id',
             'file' => 'required|file|mimes:xlsx,xls',
         ]);
 
         $file = $request->file('file');
         $file_name = 'import_excel/' . time() . '_' . md5($file) . '.xlsx';
         Storage::put($file_name, file_get_contents($file));
-        $parentId = $request->input('parent_id');
-
-        Sotrudniki::whereHas('organization', fn($q) => $q->where('parent_id', $parentId))
-            ->update(['is_imported' => false]);
 
         $failedRows = [];
 
-        $excel->import(new class($parentId, $failedRows) implements ToCollection {
-            private $parentId;
+        $excel->import(new class($failedRows) implements ToCollection {
             private $failedRows;
 
-            public function __construct($parentId, &$failedRows)
+            public function __construct(&$failedRows)
             {
-                $this->parentId = $parentId;
                 $this->failedRows = &$failedRows;
             }
 
-            public function collection(Collection $rows)
+            public function collection(Collection $collection)
             {
-                foreach ($rows->skip(1) as $index => $row) {
-                    try {
-                        $fioRaw = $row[1] ?? null;
-                        $tabelNumber = trim(preg_replace('/\s+/', '', $row[2] ?? ''));
-                        $structureName = trim(preg_replace('/\s+/', ' ', $row[5] ?? ''));
-                        $structureNameKz = trim(preg_replace('/\s+/', ' ', $row[6] ?? $structureName));
-                        $positionName = trim(preg_replace('/\s+/', ' ', $row[7] ?? ''));
-                        $positionNameKz = trim(preg_replace('/\s+/', ' ', $row[8] ?? $positionName));
+                $rows = $collection;
+                if ($rows->isEmpty()) {
+                    return;
+                }
 
-                        if (!$fioRaw || !$tabelNumber || !$positionName) {
-                            throw new \Exception("Отсутствуют обязательные данные");
-                        }
-
-                        $fio = preg_split('/\s+/', trim(ucwords(strtolower($fioRaw))));
-                        $lastName = $fio[0] ?? null;
-                        $firstName = $fio[1] ?? null;
-                        $fatherName = $fio[2] ?? null;
-                        if ($structureName){
-                            $structure = OrganizationStructure::firstOrCreate(
-                                ['name_ru' => $structureName, 'parent_id' => $this->parentId],
-                                ['name_kz' => $structureNameKz]
-                            );
-
-                            if ($structure->name_kz !== $structureNameKz) {
-                                $structure->update(['name_kz' => $structureNameKz]);
+                // Заголовок (первая строка) для попытки определения индексов
+                $header = $rows->first();
+                $normalize = function ($v) {
+                    return mb_strtolower(trim(preg_replace('/\s+/', ' ', (string)$v)));
+                };
+                $findIndex = function ($names) use ($header, $normalize) {
+                    foreach ($header as $idx => $val) {
+                        $n = $normalize($val);
+                        foreach ((array)$names as $name) {
+                            if ($n === $normalize($name)) {
+                                return (int)$idx;
                             }
-                        }else{
-                            $structure->id = $this->parentId;
+                        }
+                    }
+                    return null;
+                };
+
+                // Возможные названия столбцов
+                $fioIdx      = $findIndex(['фамилия имя отчество','фио','fio']);
+                $iinIdx      = $findIndex(['иин','iin']);
+                $tabelIdx    = $findIndex(['табельный номер','tabel_nomer','tabel']);
+                $structRuIdx = $findIndex(['подразделение','структура','организация','подразделение (рус)','организация (ru)']);
+                $structKzIdx = $findIndex(['наименование подразделения на казахском языке','структура (каз)','подразделение (каз)','организация (kz)']);
+                $posRuIdx    = $findIndex(['должность','должность (ru)','position (ru)','лауазымы']);
+                $posKzIdx    = $findIndex(['наименование должности на казахском','должность (каз)','position (kz)','лауазымы (каз)']);
+
+                // Если не распознали заголовок — применяем индексы по новому формату (A=0, B=1,...)
+                $useHeader = !is_null($fioIdx) || !is_null($iinIdx) || !is_null($tabelIdx);
+                if (!$useHeader) {
+                    $fioIdx      = 1; // B
+                    $iinIdx      = 2; // C
+                    $tabelIdx    = 3; // D
+                    $structKzIdx = 4; // E
+                    $structRuIdx = 5; // F
+                    $posKzIdx    = 6; // G
+                    $posRuIdx    = 7; // H
+                }
+
+                $iterable = $useHeader ? $rows->slice(1) : $rows;
+
+                foreach ($iterable as $index => $row) {
+                    try {
+                        $getVal = function ($r, $idx) {
+                            return is_null($idx) ? null : (isset($r[$idx]) ? trim((string)$r[$idx]) : null);
+                        };
+
+                        $fioRaw       = $getVal($row, $fioIdx);
+                        $iinRaw       = $getVal($row, $iinIdx);
+                        $tabelNumber  = preg_replace('/\s+/', '', (string)$getVal($row, $tabelIdx));
+                        $structureNameKz = $getVal($row, $structKzIdx);
+                        $structureNameRu = $getVal($row, $structRuIdx);
+                        $positionNameKz  = $getVal($row, $posKzIdx);
+                        $positionNameRu  = $getVal($row, $posRuIdx);
+
+                        // Обязательные поля: ФИО, ИИН, табельный номер, должность (RU)
+                        if (!$fioRaw || !$iinRaw || !$tabelNumber || !$positionNameRu) {
+                            throw new \Exception('Отсутствуют обязательные данные (ФИО/ИИН/Табельный номер/Должность)');
                         }
 
+                        // Валидация и нормализация ИИН (12 цифр, с учетом ведущих нулей)
+                        // Удаляем все нецифровые символы
+                        $iin = preg_replace('/\D+/', '', $iinRaw);
 
-                        $position = Position::firstOrCreate(
-                            ['name_ru' => $positionName],
-                            ['name_kz' => $positionNameKz]
-                        );
-
-                        if ($position->name_kz !== $positionNameKz) {
-                            $position->update(['name_kz' => $positionNameKz]);
+                        // Если ИИН короче 12 цифр (из-за потерянных ведущих нулей), дополняем нулями слева
+                        if (strlen($iin) > 0 && strlen($iin) < 12) {
+                            $iin = str_pad($iin, 12, '0', STR_PAD_LEFT);
                         }
 
-                        $employee = Sotrudniki::where('tabel_nomer', $tabelNumber)
-                            ->whereHas('organization', fn($q) => $q->where('parent_id', $this->parentId))
-                            ->first();
+                        // Финальная проверка: должно быть ровно 12 цифр
+                        if (strlen($iin) !== 12) {
+                            throw new \Exception('ИИН некорректен (должен содержать 12 цифр): ' . $iinRaw . ' -> ' . $iin);
+                        }
 
-                        if (!$employee && $firstName && $lastName) {
-                            $employee = Sotrudniki::where('first_name', $firstName)
-                                ->where('last_name', $lastName)
-                                ->where('father_name', $fatherName)
+                        // Нормализуем ФИО
+                        $fioParts = preg_split('/\s+/', trim($fioRaw));
+                        $lastName   = $fioParts[0] ?? '';
+                        $firstName  = $fioParts[1] ?? '';
+                        $fatherName = $fioParts[2] ?? '';
+                        $fullName = trim("$lastName $firstName $fatherName");
+
+                        // Определяем структуру (ищем по RU, fallback на KZ). Case-insensitive.
+                        $structureNameRuNorm = trim($structureNameRu ?: $structureNameKz ?: '');
+                        $structureNameKzNorm = trim($structureNameKz ?: $structureNameRuNorm);
+                        $structure = null;
+                        if ($structureNameRuNorm !== '') {
+                            $structure = OrganizationStructure::whereRaw('LOWER(TRIM(name_ru)) = ?', [mb_strtolower($structureNameRuNorm)])
+                                ->orWhereRaw('LOWER(TRIM(name_kz)) = ?', [mb_strtolower($structureNameRuNorm)])
                                 ->first();
                         }
 
+                        if (!$structure && $structureNameKzNorm !== '') {
+                            $structure = OrganizationStructure::whereRaw('LOWER(TRIM(name_ru)) = ?', [mb_strtolower($structureNameKzNorm)])
+                                ->orWhereRaw('LOWER(TRIM(name_kz)) = ?', [mb_strtolower($structureNameKzNorm)])
+                                ->first();
+                        }
+
+                        if (!$structure && ($structureNameRuNorm !== '' || $structureNameKzNorm !== '')) {
+                            $structure = OrganizationStructure::create([
+                                'name_ru' => $structureNameRuNorm ?: $structureNameKzNorm,
+                                'name_kz' => $structureNameKzNorm ?: $structureNameRuNorm,
+                            ]);
+                        }
+                        $structureId = $structure ? $structure->id : null;
+
+                        // Определяем должность
+                        $positionNameRuNorm = trim($positionNameRu);
+                        $positionNameKzNorm = trim($positionNameKz ?: $positionNameRuNorm);
+                        $position = Position::whereRaw('LOWER(TRIM(name_ru)) = ?', [mb_strtolower($positionNameRuNorm)])
+                            ->orWhereRaw('LOWER(TRIM(name_kz)) = ?', [mb_strtolower($positionNameRuNorm)])
+                            ->first();
+                        if (!$position && $positionNameKzNorm !== '') {
+                            $position = Position::whereRaw('LOWER(TRIM(name_ru)) = ?', [mb_strtolower($positionNameKzNorm)])
+                                ->orWhereRaw('LOWER(TRIM(name_kz)) = ?', [mb_strtolower($positionNameKzNorm)])
+                                ->first();
+                        }
+                        if (!$position) {
+                            $position = Position::create([
+                                'name_ru' => $positionNameRuNorm,
+                                'name_kz' => $positionNameKzNorm,
+                            ]);
+                        } elseif ($position->name_kz !== $positionNameKzNorm && $positionNameKzNorm !== '') {
+                            $position->update(['name_kz' => $positionNameKzNorm]);
+                        }
+
+                        // Поиск сотрудника: сначала по табельному номеру, потом по ИИН, затем по full_name
+                        $employee = Sotrudniki::where('tabel_nomer', $tabelNumber)->first();
+                        if (!$employee) {
+                            $employee = Sotrudniki::where('iin', $iin)->first();
+                        }
+                        if (!$employee && $fullName !== '') {
+                            $employee = Sotrudniki::whereRaw('LOWER(TRIM(full_name)) = ?', [mb_strtolower($fullName)])
+                                ->first();
+                        }
+
+                        $payload = [
+                            'full_name' => $fullName,
+                            'iin' => $iin,
+                            'tabel_nomer' => $tabelNumber,
+                            'organization_id' => $structureId,
+                            'position_id' => $position->id,
+                            'is_imported' => 1,
+                        ];
+
                         if ($employee) {
-                            $employee->update([
-                                'organization_id' => $structure->id,
-                                'position_id' => $position->id,
-                                'tabel_nomer' => $tabelNumber,
-                                'is_imported' => 1,
-                            ]);
+                            $employee->update($payload);
                         } else {
-                            Sotrudniki::create([
-                                'first_name' => $firstName,
-                                'last_name' => $lastName,
-                                'father_name' => $fatherName,
-                                'tabel_nomer' => $tabelNumber,
-                                'organization_id' => $structure->id,
-                                'position_id' => $position->id,
-                                'is_imported' => 1,
-                            ]);
+                            Sotrudniki::create($payload);
                         }
 
                     } catch (\Exception $e) {
                         $this->failedRows[] = [
-                            'row' => $index + 2,
+                            'row' => ($useHeader ? 2 : 1) + (is_int($index) ? $index : 0),
                             'error' => $e->getMessage(),
                         ];
                     }
@@ -359,121 +440,15 @@ class OrganizationStructureScreen extends Screen
         if (!empty($failedRows)) {
             $logPath = storage_path('logs/failed_imports_' . now()->format('Y_m_d_H_i_s') . '.txt');
             file_put_contents($logPath, json_encode($failedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            Toast::error('Импорт завершён с ошибками. Проверьте лог.');
+
+            $failedCount = count($failedRows);
+            Toast::error("Импорт завершён с ошибками ($failedCount строк). Проверьте лог: " . basename($logPath));
         } else {
             Toast::success('Импорт сотрудников завершён успешно.');
         }
 
         Storage::delete($file_name);
     }
-
-
-
-
-//    public function importExcel(Excel $excel, Request $request)
-//    {
-//        $request->validate([
-//            'parent_id' => 'required|exists:organization_structure,id',
-//            'file' => 'required|file|mimes:xlsx,xls',
-//        ]);
-//
-//        $file = $request->file('file');
-//        $file_name = 'import_excel/'.time().'_'. md5($file). '.xlsx';
-//        Storage::put($file_name, file_get_contents($file));
-//        $parentId = $request->input('parent_id');
-//        $failedRows = [];
-////        dd($file_name);
-//
-//        // Используем Excel для чтения файла
-//        $excel->import(new class($parentId, $failedRows) implements ToCollection, WithHeadingRow {
-//            private $parentId;
-//            private $failedRows;
-//
-//            public function __construct($parentId, &$failedRows)
-//            {
-//                $this->parentId = $parentId;
-//                $this->failedRows = &$failedRows;
-//            }
-//
-//            public function collection(Collection $rows)
-//            {
-//                foreach ($rows as $index => $row) {
-//                    try {
-//                        $structureName = $row['naimenovanie_sp_sp_psp_otdel_tsekh_sluzhba'];
-//                        $positionName = $row['dolzhnost_professiya'];
-//
-//                        $fio = preg_split('/\s+/', trim(ucwords(strtolower($row['fio'])) ?? ''));
-//                        //$fio = explode(' ', ucwords(strtolower($row['fio'])));
-//
-//                        $lastName = $fio[0] ?? null;
-//                        $firstName = $fio[1] ?? null;
-//                        $fatherName = $fio[2] ?? null;
-//                        $tabelNumber = $row['tabelnyy_nomer'];
-//
-//                        // Найти или создать структуру
-//                        $structure = OrganizationStructure::firstOrCreate(
-//                            ['name_ru' => $structureName, 'parent_id' => $this->parentId],
-//                            ['name_kz' => $structureName]
-//                        );
-//
-//                        // Найти или создать должность
-//                        $position = Position::firstOrCreate(
-//                            ['name_ru' => $positionName],
-//                            ['name_kz' => $positionName]
-//                        );
-//
-//                        // Проверить существование сотрудника
-//                        $employee = Sotrudniki::where('first_name', $firstName)
-//                            ->where('last_name', $lastName)
-//                            ->where('father_name', $fatherName)
-//                            ->first();
-//
-//                        if (!$employee) {
-//                            Sotrudniki::create([
-//                                'first_name' => $firstName,
-//                                'last_name' => $lastName,
-//                                'father_name' => $fatherName,
-//                                'tabel_nomer' => $tabelNumber,
-//                                'organization_id' => $structure->id,
-//                                'position_id' => $position->id,
-//                            ]);
-//                        }else {
-//                            // Сотрудник есть. Проверяем, изменилась ли структура или должность
-//                            if (
-//                                $employee->organization_id !== $structure->id
-//                                || $employee->position_id !== $position->id
-//                                || $employee->tabel_nomer !== $tabelNumber
-//                            ) {
-//                                $employee->update([
-//                                    'organization_id' => $structure->id,
-//                                    'position_id' => $position->id,
-//                                    'tabel_nomer' => $tabelNumber,
-//                                ]);
-//                            }
-//                        }
-//                    } catch (\Exception $e) {
-//                        $this->failedRows[] = [
-//                            'row' => $index + 1,
-//                            'error' => $e->getMessage(),
-//                        ];
-//                    }
-//                }
-//            }
-//        }, $file_name);
-//
-//        // Сохранение логов
-//        if (!empty($failedRows)) {
-//            $logPath = storage_path('logs/failed_imports_' . now()->format('Y_m_d_H_i_s') . '.txt');
-//            file_put_contents($logPath, json_encode($failedRows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-//
-//            Toast::error('Импорт завершен с ошибками. Проверьте логи.');
-//        }else{
-//            Toast::success('Импорт успешен.');
-//        }
-//        Storage::delete($file_name);
-//    }
-
-
 
     /**
      * Создает или обновляет категорию.
@@ -487,10 +462,22 @@ class OrganizationStructureScreen extends Screen
             'structure.name_kz' => 'required|string',
         ]);
 
-        OrganizationStructure::updateOrCreate(
-            ['id' => $request->input('structure.id')],
-            $request->input('structure')
-        );
+        $payload = $request->input('structure', []);
+        $id = $payload['id'] ?? null;
+        unset($payload['id']);
+
+        if ($id) {
+            $org = OrganizationStructure::find($id);
+            if ($org) {
+                $org->update($payload);
+            } else {
+                $org = new OrganizationStructure($payload);
+                $org->id = (int)$id; // ручная установка первичного ключа при необходимости
+                $org->save();
+            }
+        } else {
+            OrganizationStructure::create($payload);
+        }
 
         Toast::info('Категория успешно сохранена.');
     }

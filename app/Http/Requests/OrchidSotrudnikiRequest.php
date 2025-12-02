@@ -24,10 +24,8 @@ class OrchidSotrudnikiRequest extends FormRequest
     {
         return [
             'sotrudnik.id' => 'integer|nullable',
-            'sotrudnik.last_name' => 'required|string',
-            'sotrudnik.first_name' => 'required|string',
-            'sotrudnik.father_name' => 'string',
-//            'sotrudnik.iin' => 'required|digits:12',
+            'sotrudnik.full_name' => 'required|string',
+            'sotrudnik.iin' => 'required|digits:12',
             'sotrudnik.tabel_nomer' => 'required|integer',
 //            'sotrudnik.birthdate' => 'required|date_format:Y-m-d',
 //            'sotrudnik.phone_number' => 'required|phone:KZ',
@@ -42,8 +40,7 @@ class OrchidSotrudnikiRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'sotrudnik.first_name.required' => 'Поле Имя обязательно для заполнения.',
-            'sotrudnik.last_name.required' => 'Поле Фамилия обязательно для заполнения.',
+            'sotrudnik.full_name.required' => 'Поле ФИО обязательно для заполнения.',
             'sotrudnik.iin.required' => 'Поле ИИН обязательно для заполнения.',
             'sotrudnik.iin.digits' => 'ИИН должен содержать 12 цифр.',
             'sotrudnik.tabel_nomer.required' => 'Поле табельный номер обязательно для заполнения.',

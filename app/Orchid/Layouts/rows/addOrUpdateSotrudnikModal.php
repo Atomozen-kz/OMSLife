@@ -29,20 +29,10 @@ class addOrUpdateSotrudnikModal extends Rows
     {
         return [
             Input::make('sotrudnik.id')->type('hidden'),
-                Input::make('sotrudnik.last_name')
-                    ->title('Фамилия')
+                Input::make('sotrudnik.full_name')
+                    ->title('ФИО')
                     ->required()
-                    ->placeholder('Введите Фамилия'),
-
-                Input::make('sotrudnik.first_name')
-                    ->title('Имя')
-                    ->required()
-                    ->placeholder('Введите Имя'),
-
-                Input::make('sotrudnik.father_name')
-                    ->title('Отчество')
-                    ->required()
-                    ->placeholder('Введите Отчество'),
+                    ->placeholder('Введите полное имя (Фамилия Имя Отчество)'),
 
 //                Input::make('sotrudnik.iin')
 //                    ->title('ИИН')
@@ -51,6 +41,11 @@ class addOrUpdateSotrudnikModal extends Rows
                 Input::make('sotrudnik.tabel_nomer')
                     ->title('Табель номер')
                     ->placeholder('Введите табель номер')
+                    ->required(),
+
+                Input::make('sotrudnik.iin')
+                    ->title('ИИН')
+                    ->placeholder('Введите ИИН')
                     ->required(),
 
 //                DateTimer::make('sotrudnik.birthdate')

@@ -75,7 +75,7 @@ class SpravkaSotrudnikamDetailScreen extends Screen
                 Sight::make('id', 'ID'),
                 Sight::make('iin', 'ИИН'),
                 Sight::make('employee.name', 'Сотрудник')->render(function (SpravkaSotrudnikam $certificate) {
-                    return $certificate->sotrudnik->last_name . ' ' . $certificate->sotrudnik->first_name . ' ' . $certificate->sotrudnik->father_name;
+                    return $certificate->sotrudnik->full_name;
                 }),
                 Sight::make('organizationStructure.name_ru', 'Организация')->render(
                     function (SpravkaSotrudnikam $certificate) {

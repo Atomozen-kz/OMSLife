@@ -48,7 +48,6 @@ class ApiPayrollSlipController extends Controller
         $employee->update([
             'iin' => $iin,
             'birthdate' => $birthdate,
-            'is_payroll_slip_func' => true,
             'gender' => $gender ?? null,
         ]);
 
@@ -112,9 +111,7 @@ class ApiPayrollSlipController extends Controller
             return response()->json(['message' => 'Сотрудник не найден'], 404);
         }
 
-        $employee->update([
-            'is_payroll_slip_func' => false,
-        ]);
+        // Функционал отключения расчетных листов больше не требуется
 
         return response()->json(['message' => 'Функционал расчетных листов отключен'], 200);
     }

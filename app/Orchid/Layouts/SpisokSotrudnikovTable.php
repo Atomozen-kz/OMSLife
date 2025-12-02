@@ -31,7 +31,7 @@ class SpisokSotrudnikovTable extends Table
         return [
             TD::make('fio', 'ФИО')
                 ->render(function (Sotrudniki $sotrudnik) {
-                    return Link::make($sotrudnik->last_name . ' ' . $sotrudnik->first_name . ' ' . $sotrudnik->father_name)
+                    return Link::make($sotrudnik->full_name)
                         ->route('platform.sotrudnik', $sotrudnik);
                 }),
 

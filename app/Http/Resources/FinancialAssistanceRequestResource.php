@@ -32,8 +32,8 @@ class FinancialAssistanceRequestResource extends JsonResource
             'processed_at' => $this->processed_at?->format('d.m.Y H:i'),
             'sotrudnik' => [
                 'id' => $this->sotrudnik->id,
-                'name' => $this->sotrudnik->fio ?? ($this->sotrudnik->last_name . ' ' . $this->sotrudnik->first_name . ' ' . $this->sotrudnik->father_name),
-                'full_name' => $this->sotrudnik->fio ?? ($this->sotrudnik->last_name . ' ' . $this->sotrudnik->first_name . ' ' . $this->sotrudnik->father_name),
+                'name' => $this->sotrudnik->full_name,
+                'full_name' => $this->sotrudnik->full_name,
                 'position' => $this->sotrudnik->position->name_ru ?? null,
                 'organization' => $this->sotrudnik->organization->name_ru ?? null,
             ],
@@ -43,8 +43,8 @@ class FinancialAssistanceRequestResource extends JsonResource
             ]),
             'files' => FinancialAssistanceRequestFileResource::collection($this->whenLoaded('files')),
             'history' => FinancialAssistanceRequestHistoryResource::collection($this->whenLoaded('statusHistory')),
-            'pdf_url' => $this->pdf_path && Storage::disk('public')->exists($this->pdf_path) 
-                ? Storage::disk('public')->url($this->pdf_path) 
+            'pdf_url' => $this->pdf_path && Storage::disk('public')->exists($this->pdf_path)
+                ? Storage::disk('public')->url($this->pdf_path)
                 : null,
             'pdf_available' => $this->pdf_path && Storage::disk('public')->exists($this->pdf_path),
             'created_at' => $this->created_at->format('d.m.Y H:i'),

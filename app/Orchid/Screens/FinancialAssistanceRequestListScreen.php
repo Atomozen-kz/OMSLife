@@ -127,7 +127,7 @@ class FinancialAssistanceRequestListScreen extends Screen
 
                 TD::make('sotrudnik', 'Заявитель')
                     ->render(function (FinancialAssistanceRequest $request) {
-                        $name = $request->sotrudnik ? trim($request->sotrudnik->last_name . ' ' . $request->sotrudnik->first_name . ' ' . $request->sotrudnik->father_name) : 'Не указано';
+                        $name = $request->sotrudnik ? $request->sotrudnik->full_name : 'Не указано';
                         $position = $request->sotrudnik->position->name_ru ?? '';
                         $organization = $request->sotrudnik->organization->name_ru ?? '';
                         return "<strong>{$name}</strong>" . ($position ? "<br><small class='text-muted'>{$position}</small><br><small class='text-muted'>{$organization}</small>" : '');

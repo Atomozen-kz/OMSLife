@@ -163,7 +163,7 @@ class PromzonaScreen extends Screen
                         ->required(),
 
                     Relation::make('promzonaObject.id_sotrudnik')
-                        ->fromModel(Sotrudniki::class, 'last_name')
+                        ->fromModel(Sotrudniki::class, 'full_name')
                         ->displayAppend('fio')
                         ->title('ФИО сотрудника')
                         ->allowEmpty()

@@ -41,6 +41,9 @@ class SotrudnikiImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                 $firstName = $fioParts[1] ?? null;
                 $fatherName = isset($fioParts[2]) ? implode(' ', array_slice($fioParts, 2)) : null;
 
+                // Собираем полное имя
+                $fullName = trim("$lastName $firstName $fatherName");
+
                 // Проверяем и добавляем ПСП в organization_structure
                 $pspOrganization = OrganizationStructure::firstOrCreate(
                     ['name_ru' => $psp, 'parent_id' => null],
@@ -60,11 +63,9 @@ class SotrudnikiImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                 );
 
                 DB::table('sotrudniki')->updateOrInsert(
-                    ['tabel_nomer' => $tabel_nomer,
-                    'last_name' => $lastName,],
+                    ['tabel_nomer' => $tabel_nomer],
                 [
-                    'first_name' => $firstName,
-                    'father_name' => $fatherName,
+                    'full_name' => $fullName,
                     'organization_id' => $naimenovanieOrganization->id,
                     'position_id' => $position->id,
                 ]);

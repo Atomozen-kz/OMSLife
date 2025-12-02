@@ -68,7 +68,7 @@ class BankIdeaScreen extends Screen
                     ->render(fn(BankIdea $idea) => '<span class="btn btn-outline-primary">' . e($idea->status_label) . '</span>'),
 
                 Sight::make('author', 'Автор')
-                    ->render(fn(BankIdea $idea) => optional($idea->author)->last_name . ' ' . optional($idea->author)->first_name),
+                    ->render(fn(BankIdea $idea) => optional($idea->author)->full_name),
 
                 Sight::make('created_at', 'Дата создания')
                     ->render(fn(BankIdea $idea) => $idea->created_at->format('d.m.Y H:i')),

@@ -62,9 +62,7 @@ class OneSotrudnikScreen extends Screen
      */
     public function name(): ?string
     {
-        return $this->sotrudnik->last_name . ' ' .
-               $this->sotrudnik->first_name . ' ' .
-               $this->sotrudnik->father_name;
+        return $this->sotrudnik->full_name;
     }
 
     /**
@@ -122,17 +120,22 @@ class OneSotrudnikScreen extends Screen
     {
         return [
             Layout::legend('sotrudnik', [
-                Sight::make('last_name', 'Фамилия'),
-                Sight::make('first_name', 'Имя'),
-                Sight::make('father_name', 'Отчество'),
+                Sight::make('full_name', 'ФИО'),
                 Sight::make('tabel_nomer', 'Табельный номер'),
                 Sight::make('iin', 'ИИН'),
                 Sight::make('phone_number', 'Номер телефона'),
                 Sight::make('psp_name', 'ПСП')->render(function ($sotrudnik) {
 
-                    $psp = OrganizationStructure::find( $sotrudnik->organization_id)->getFirstParent();
+                    $org = $sotrudnik->organization ?? ($sotrudnik->organization_id ? OrganizationStructure::find($sotrudnik->organization_id) : null);
+                    if (!$org || !method_exists($org, 'getFirstParent')) {
+                        return '';
+                    }
+                    $psp = $org->getFirstParent();
+                    if (!$psp) {
+                        return '';
+                    }
 
-                    return $psp->name_kz.' | '.$psp->name_ru;
+                    return ($psp->name_kz ?? '') . ' | ' . ($psp->name_ru ?? '');
                 }),
                 Sight::make('organization.name_ru', 'Организация')->render(function ($sotrudnik) {
                     return $sotrudnik->organization ? $sotrudnik->organization->name_kz.' | '.$sotrudnik->organization->name_ru : '';
@@ -301,7 +304,7 @@ class OneSotrudnikScreen extends Screen
 
         return array(
             'sotrudnik_id' => $sotrudnik->id ?? null,
-            'fio' => $sotrudnik ? ($sotrudnik->last_name . ' ' . $sotrudnik->first_name . ' ' . $sotrudnik->father_name) : '',
+            'fio' => $sotrudnik ? $sotrudnik->full_name : '',
             'type' => 'milk',
             'code' => $sotrudniki_code,
         );

@@ -242,7 +242,7 @@ class StatisticsMonthDetailScreen extends Screen
                     return $item->tabel_nomer;
                 }),
                 TD::make('fio', 'ФИО')->render(function ($item) {
-                    return $item->full_name ?? ($item->last_name . ' ' . $item->first_name);
+                    return $item->full_name;
                 }),
 
                 // телефон скрыт по требованию

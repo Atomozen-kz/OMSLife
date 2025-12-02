@@ -93,7 +93,7 @@ class SpravkaSotrudnikamScreen extends Screen
                 TD::make('iin', 'ИИН')->sort()->width('120px'),
 
                 TD::make('name', 'Сотрудник')->render(function (SpravkaSotrudnikam $certificate) {
-                    return $certificate->sotrudnik->last_name . ' ' . $certificate->sotrudnik->first_name . ' ' . $certificate->sotrudnik->father_name;
+                    return $certificate->sotrudnik->full_name;
                 }),
 
                 TD::make('organizationStructure.name_ru', 'Организация')->render(function (SpravkaSotrudnikam $certificate) {

@@ -22,7 +22,7 @@ class PlaceholderService
             '{{sotrudnik.department}}' => 'Отдел сотрудника',
             '{{sotrudnik.phone}}' => 'Телефон сотрудника',
             '{{sotrudnik.employee_id}}' => 'Табельный номер',
-            
+
             // Временные плейсхолдеры
             '{{current_date}}' => 'Текущая дата (дд.мм.гггг)',
             '{{current_datetime}}' => 'Текущая дата и время (дд.мм.гггг чч:мм)',
@@ -47,8 +47,6 @@ class PlaceholderService
         if ($user) {
             $userReplacements = [
                 '{{sotrudnik.full_name}}' => self::getSotrudnikField($user, 'full_name'),
-                '{{sotrudnik.first_name}}' => self::getSotrudnikField($user, 'first_name'),
-                '{{sotrudnik.last_name}}' => self::getSotrudnikField($user, 'last_name'),
                 // '{{sotrudnik.email}}' => self::getSotrudnikField($user, 'email'),
                 '{{sotrudnik.position}}' => self::getSotrudnikField($user, 'position'),
                 '{{sotrudnik.department}}' => self::getSotrudnikField($user, 'department'),
@@ -99,7 +97,7 @@ class PlaceholderService
                 // Пробуем разные варианты полей для ФИО
                 return $user->full_name ?? $user->fio ?? $user->name ?? '';
             }
-            
+
             $value = $user->{$field} ?? '';
             return (string) $value;
         } catch (\Exception $e) {
@@ -113,11 +111,11 @@ class PlaceholderService
     public static function getPreview(string $text, $user = null): string
     {
         $resolved = self::resolve($text, $user);
-        
+
         if ($resolved === $text) {
             return $text; // Плейсхолдеры не найдены
         }
-        
+
         return $resolved . ' <small class="text-muted">(обработано)</small>';
     }
 
