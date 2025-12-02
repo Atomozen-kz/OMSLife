@@ -41,7 +41,7 @@ class SotrudnikiController extends Controller
     {
         $result = $this->sotrudnikService->registerSotrudnik($request->validated());
 
-        return response()->json(['message' => $result['message'], 'sms_responce' => $result['sms_responce'] ?? null], $result['status']);
+        return response()->json(['message' => $result['message'], 'sms_code'=>$result['sms_code'], 'sms_responce' => $result['sms_responce'] ?? null], $result['status']);
     }
 
     /** Регистрация пользователя 2 этап*/
@@ -117,7 +117,7 @@ class SotrudnikiController extends Controller
 
         return response()->json([
             'id' => $sotrudnik->id,
-            'fio' => $sotrudnik->full_name,
+            'full_name' => $sotrudnik->full_name,
             'iin' => $sotrudnik->iin,
             'tabel_nomer' => $sotrudnik->tabel_nomer,
             'phone_number' => $sotrudnik->phone_number,

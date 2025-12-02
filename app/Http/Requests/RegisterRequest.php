@@ -22,9 +22,8 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'last_name' => 'required|string',
+            'iin' => 'required|string|size:12',
             'tabel_nomer' => 'required|integer',
-            'organization_id' => 'required|integer',
             'phone_number' => 'required|phone:KZ',
         ];
     }
@@ -32,11 +31,12 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'last_name.required' => 'Фамилия/ неправильно введен',
-            'organization_id.required' => 'Организация не выбран',
-            'tabel_nomer.required' => 'Табель номер отсуствует/ неправильно введен',
-            'phone_number.required' => 'Номер телефона отсуствует/ неправильно введен',
-            'phone_number.phone' => 'Номер телефона должен быть корректным для Казахстана.',
+            'iin.required' => 'ИИН обязателен для заполнения',
+            'iin.size' => 'ИИН должен содержать 12 символов',
+            'tabel_nomer.required' => 'Табельный номер обязателен для заполнения',
+            'tabel_nomer.integer' => 'Табельный номер должен быть числом',
+            'phone_number.required' => 'Номер телефона обязателен для заполнения',
+            'phone_number.phone' => 'Номер телефона должен быть корректным для Казахстана',
         ];
     }
 }

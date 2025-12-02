@@ -51,7 +51,7 @@ return [
              */
 
             'credentials' => [
-                'file' => storage_path('app/firebase/omg-life-59631-firebase-adminsdk-nvrwf-9014d3028b.json'),
+                'file' => storage_path('app/firebase/oms-life-firebase-adminsdk-fbsvc-b910fc7471.json'),
             ],
 
             /*

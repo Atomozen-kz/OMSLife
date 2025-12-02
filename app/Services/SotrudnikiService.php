@@ -14,43 +14,33 @@ class SotrudnikiService{
 
     public function registerSotrudnik(array $data)
     {
-        // Поиск сотрудника в базе данных
-        $sotrudniki = Sotrudniki::where('tabel_nomer', $data['tabel_nomer'])
-            ->whereRaw('LOWER(full_name) LIKE ?', ['%' . strtolower($data['last_name']) . '%'])
-            ->get();
+        // Поиск сотрудника по ИИН и табельному номеру
+        $sotrudnik = Sotrudniki::where('iin', $data['iin'])
+            ->where('tabel_nomer', $data['tabel_nomer'])
+            ->first();
 
-        if (!$sotrudniki) {
-            return ['message' => 'Сотрудник не найден', 'status' => 404];
-        }
-        $sotrudnik = null;
-        $not_in_organization = true;
-        // Проверка, что сотрудник принадлежит к указанной организации
-        foreach ($sotrudniki as $s) {
-            $organization = OrganizationStructure::find($s->organization_id);
-            $topLevelOrganization = $organization->getFirstParent();
-
-            if ($topLevelOrganization->id == $data['organization_id']) {
-                $sotrudnik = $s;
-                $not_in_organization = false;
-            }
+        if (!$sotrudnik) {
+            return ['message' => 'Сотрудник с указанным ИИН и табельным номером не найден', 'status' => 404];
         }
 
-        if ($not_in_organization) {
-            return ['message' => 'Сотрудник не принадлежит к указанной организации', 'status' => 403];
+        // Проверяем, не зарегистрирован ли этот номер телефона для другого сотрудника
+        $phoneExists = Sotrudniki::where('phone_number', $data['phone_number'])
+            ->where('id', '!=', $sotrudnik->id)
+            ->first();
+
+        if ($phoneExists) {
+            return ['message' => 'Этот номер телефона уже зарегистрирован для другого сотрудника', 'status' => 409];
         }
 
-        if ($tel_phone = Sotrudniki::where('phone_number', $data['phone_number'])->where('id', '!=', $sotrudnik->id)->first()) {
-            return ['message' => 'Этот номер телефона уже зарегистрирован', 'status' => 409];
-        }
-
+        // Обновляем номер телефона сотрудника
         $sotrudnik->update(['phone_number' => $data['phone_number']]);
 
         // Проверка частоты отправки SMS
         $recentSms = SmsCode::where('phone_number', $data['phone_number'])
-            ->where('created_at', '>', Carbon::now()->subMinutes(60));
+            ->where('created_at', '>', Carbon::now()->subMinutes(1));
 
-        if ($recentSms->exists() && $data['phone_number'] != $sotrudnik->phone_number) {
-            return ['message' => 'Слишком много запросов', 'status' => 403];
+        if ($recentSms->exists()) {
+            return ['message' => 'Слишком много запросов. Попробуйте позже.', 'status' => 429];
         }
 
         // Генерация SMS-кода
@@ -64,7 +54,7 @@ class SotrudnikiService{
             'is_used' => false,
         ]);
 
-        // Отправка SMS-кода (здесь можно интегрировать сервис отправки SMS)
+        // Отправка SMS-кода
         $smsServiceUrl = Config::get('app.smsServiceUrl');
         $smsResponse = Http::get($smsServiceUrl, [
             'login' => Config::get('app.smsServiceLogin'),
@@ -76,7 +66,7 @@ class SotrudnikiService{
         ])->json();
 //        $smsResponse = SendVerifyCodeJob::dispatch($data['phone_number'], "OMGLife\nВаш код: ". $smsCode);
 
-        return ['message' => 'SMS отправлено', 'success'=>true, 'sms_responce' => $smsResponse, 'status' => 200];
+        return ['message' => 'SMS отправлено', 'sms_code' => $smsCode, 'success'=>true, 'sms_responce' => $smsResponse, 'status' => 200];
     }
 
     /**
