@@ -25,13 +25,62 @@ class OrchidSotrudnikiRequest extends FormRequest
         return [
             'sotrudnik.id' => 'integer|nullable',
             'sotrudnik.full_name' => 'required|string',
-            'sotrudnik.iin' => 'required|digits:12',
+            'sotrudnik.iin' => ['required', 'digits:12', function ($attribute, $value, $fail) {
+                // Проверяем, что ИИН содержит корректную дату рождения
+                if (!$this->validateIIN($value)) {
+                    $fail('ИИН содержит некорректную дату рождения или неверный формат.');
+                }
+            }],
             'sotrudnik.tabel_nomer' => 'required|integer',
 //            'sotrudnik.birthdate' => 'required|date_format:Y-m-d',
 //            'sotrudnik.phone_number' => 'required|phone:KZ',
             'sotrudnik.organization_id' => 'required|exists:organization_structure,id|integer',
             'sotrudnik.position_id' => 'required|integer',
         ];
+    }
+
+    /**
+     * Валидация ИИН
+     */
+    private function validateIIN($iin): bool
+    {
+        if (strlen($iin) !== 12 || !is_numeric($iin)) {
+            return false;
+        }
+
+        // Проверяем дату рождения
+        $year = substr($iin, 0, 2);
+        $month = substr($iin, 2, 2);
+        $day = substr($iin, 4, 2);
+        $centuryGender = (int)substr($iin, 6, 1);
+
+        // Определяем век
+        $century = null;
+        switch ($centuryGender) {
+            case 1:
+            case 2:
+                $century = 1800;
+                break;
+            case 3:
+            case 4:
+                $century = 1900;
+                break;
+            case 5:
+            case 6:
+                $century = 2000;
+                break;
+            default:
+                return false;
+        }
+
+        $fullYear = $century + (int)$year;
+
+        // Проверяем корректность даты
+        if (!checkdate((int)$month, (int)$day, $fullYear)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

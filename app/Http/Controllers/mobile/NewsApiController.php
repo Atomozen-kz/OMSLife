@@ -88,7 +88,7 @@ class NewsApiController extends Controller
             'data' => [
                 'id' => $comment->id,
                 'news_id' => $comment->news_id,
-                'photo_profile' => Storage::disk('public')->url($comment->sotrudnik->photo_profile) ?? '',
+                'photo_profile' => $comment->sotrudnik->photo_profile ? Storage::disk('public')->url($comment->sotrudnik->photo_profile) : null,
                 'sotrudnik_name' => $comment->sotrudnik->fio ?? 'Аноним',
                 'comment' => $comment->comment,
                 'created_at' => $comment->created_at->format('Y-m-d H:i:s'),
