@@ -60,7 +60,7 @@ class SotrudnikiService{
             'login' => Config::get('app.smsServiceLogin'),
             'psw' => Config::get('app.smsServicePassword'),
             'phones' => $data['phone_number'],
-            'mes' => "OMGLife\nВаш код: ". $smsCode,
+            'mes' => "OMS Life\nВаш код: ". $smsCode,
             'sender' => 'ALLFOOD',
             'fmt' => 3
         ])->json();

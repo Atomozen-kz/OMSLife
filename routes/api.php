@@ -47,7 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/services-vars', [ServicesVarController::class, 'index']);
 
     Route::post('/updatePhotoProfile', [SotrudnikiController::class, 'updatePhotoProfile']);
-    Route::post('/getSotrudnikDetails', [SotrudnikiController::class, 'getSotrudnikDetails']);
+    Route::get('/getSotrudnikDetails', [SotrudnikiController::class, 'getSotrudnikDetails']);
     Route::post('/updateFcmToken', [SotrudnikiController::class, 'updateFcmToken']);
     Route::post('/updateLang', [SotrudnikiController::class, 'updateLang']);
     Route::post('/updateGender', [SotrudnikiController::class, 'updateGender']);

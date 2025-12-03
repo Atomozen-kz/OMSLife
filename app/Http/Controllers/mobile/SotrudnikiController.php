@@ -110,7 +110,7 @@ class SotrudnikiController extends Controller
     }
 
     /* Получение данных профиля */
-    public function getSotrudnikDetails(Request $request)
+    public function getSotrudnikDetails()
     {
         // Получение аутентифицированного сотрудника
         $sotrudnik = auth()->user();
