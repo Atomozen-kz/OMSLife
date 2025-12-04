@@ -58,15 +58,15 @@ class PayrollSlipController extends Controller
                     $sotrudnik = Sotrudniki::where('iin', $data['iin'])
                         ->first();
                 }
-                if (!$sotrudnik){
-                    if (!empty($data['tabel_nomer']) && !empty($data['last_name']) && !empty($data['first_name'])) {
-                        // Поиск сотрудника по табельному номеру и ФИО
-                        $sotrudnik = Sotrudniki::where('tabel_nomer', $data['tabel_nomer'])
-                            ->whereRaw('LOWER(last_name) = ?', [strtolower($data['last_name'])])
-                            ->whereRaw('LOWER(first_name) = ?', [strtolower($data['first_name'])])
-                            ->first();
-                    }
-                }
+//                if (!$sotrudnik){
+//                    if (!empty($data['tabel_nomer']) && !empty($data['last_name']) && !empty($data['first_name'])) {
+//                        // Поиск сотрудника по табельному номеру и ФИО
+//                        $sotrudnik = Sotrudniki::where('tabel_nomer', $data['tabel_nomer'])
+//                            ->whereRaw('LOWER(last_name) = ?', [strtolower($data['last_name'])])
+//                            ->whereRaw('LOWER(first_name) = ?', [strtolower($data['first_name'])])
+//                            ->first();
+//                    }
+//                }
 
 
                 if ($sotrudnik && isset($data['pdf'])) {
@@ -85,7 +85,7 @@ class PayrollSlipController extends Controller
 
                     // Генерация уникального имени файла
                     $fileName = 'payroll_slips/' . 'Жировка ' .
-                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['last_name'] ?? ' - ') . '_' . ($data['first_name'] ?? ' - ')) . '/' .
+                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['full_name'] ?? ' - ') ?? ' - ') . '/' .
                         preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['month'] ?? 'Не найдено') . '_' . time() .'_'.rand(1111, 9999)) . '.pdf';
 
                     try {
@@ -101,9 +101,9 @@ class PayrollSlipController extends Controller
                     try {
                         $payrollSlip = PayrollSlip::create([
                             'sotrudniki_id' => $sotrudnik->id,
-                            'last_name' => $sotrudnik->last_name,
-                            'first_name' => $sotrudnik->first_name,
-                            'father_name' => $sotrudnik->father_name,
+                            'last_name' => $sotrudnik->full_name,
+                            'first_name' => $sotrudnik->full_name,
+                            'father_name' => $sotrudnik->full_name,
                             'tabel_nomer' => $sotrudnik->tabel_nomer,
                             'iin' => $data['iin'] ?? '',
                             'month' => $data['month'] ?? ' - ',
@@ -149,11 +149,9 @@ class PayrollSlipController extends Controller
                     $notFindCount++;
                     PayrollSlip_404::create([
                         'tabel_nomer' => $data['tabel_nomer'] ?? ' - ',
-                        'last_name' => $data['last_name'] ?? ' - ',
-                        'first_name' => $data['first_name'] ?? ' - ',
+                        'full_name' => $data['full_name'] ?? ' - ',
                         'month' => $data['month'] ?? ' - ',
                         'iin' => $data['iin'] ?? ' - ',
-                        'psp_name' => $data['psp_name'] ?? ' - ',
                         'pdf' => null,
                     ]);
                 }
