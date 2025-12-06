@@ -29,7 +29,7 @@ class ServicesVarController extends Controller
             $lang = $request->input('lang');
             $data = $this->servicesVarApiService->getServicesVarsByLang($lang);
 
-            return response()->json($data, 200);
+            return response()->json(array('data' => $data, 'success'=>true), 200);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'error' => $e->getMessage(),
