@@ -364,6 +364,29 @@ class SotrudnikiController extends Controller
             'refresh_token' => 'required|string',
         ]);
 
+        $hashedToken = hash('sha256', $validatedData['refresh_token']);
+        $sotrudnik = Sotrudniki::where('refresh_token', $hashedToken)->first();
+
+        if (!$sotrudnik) {
+            return response()->json([
+                'message' => 'Недействительный refresh токен'
+            ], 401);
+        }
+
+        // Тестовые аккаунты - возвращаем текущие токены без обновления
+        $testPhones = ['+77089222820', '+77081139347'];
+        if (in_array($sotrudnik->phone_number, $testPhones)) {
+            // Находим оригинальные токены (unhashed версии недоступны, возвращаем информацию)
+            return response()->json([
+                'message' => 'Тестовый аккаунт - токены не обновляются',
+                'access_token' => $validatedData['refresh_token'], // Возвращаем тот же refresh token как заглушку
+                'refresh_token' => $validatedData['refresh_token'],
+                'expires_at' => $sotrudnik->token_expires_at ? $sotrudnik->token_expires_at->toDateTimeString() : null,
+                'token_type' => 'Bearer',
+            ], 200);
+        }
+
+        // Для обычных пользователей обновляем токены
         $tokenService = new \App\Services\TokenService();
         $tokens = $tokenService->refreshTokens($validatedData['refresh_token']);
 
