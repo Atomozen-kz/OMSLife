@@ -2,7 +2,7 @@
 
 namespace App\Auth;
 
-use App\Models\Sotrudnik;
+use App\Models\Sotrudniki;
 use Illuminate\Auth\GuardHelpers;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Http\Request;
@@ -32,7 +32,7 @@ class CustomTokenGuard implements Guard
             return null;
         }
 
-        $this->user = Sotrudnik::where('access_token', $token)->first();
+        $this->user = Sotrudniki::where('access_token', $token)->first();
 
         return $this->user;
     }
