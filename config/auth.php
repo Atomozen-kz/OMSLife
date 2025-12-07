@@ -76,6 +76,10 @@ return [
             'driver' => 'eloquent',
             'model' => App\Models\PickupPoint::class,
         ],
+        'sotrudniki' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Sotrudniki::class,
+        ],
 
         // 'users' => [
         //     'driver' => 'database',
