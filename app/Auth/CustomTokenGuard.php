@@ -32,7 +32,10 @@ class CustomTokenGuard implements Guard
             return null;
         }
 
-        $this->user = Sotrudniki::where('access_token', $token)->first();
+        // Хешируем токен для сравнения с БД (так как токены хранятся в хешированном виде)
+        $hashedToken = hash('sha256', $token);
+
+        $this->user = Sotrudniki::where('access_token', $hashedToken)->first();
 
         return $this->user;
     }
