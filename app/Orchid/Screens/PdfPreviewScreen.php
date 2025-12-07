@@ -2,6 +2,7 @@
 namespace App\Orchid\Screens;
 
 use App\Models\OrganizationSigner;
+use App\Models\Sotrudniki;
 use App\Models\SpravkaSotrudnikam;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -28,16 +29,18 @@ class PdfPreviewScreen extends Screen
 
         $this->spravka = $spravka;
 
+        $sotrudnik = Sotrudniki::with(['position', 'organization'])->where('id', $spravka->id)->first();
+
         return [
             'spravka' => $spravka,
-            'sotrudnik' => $spravka->sotrudnik,
+            'sotrudnik' => $sotrudnik,
             'text_kz' => '',
             'text_ru' => '',
             'signer' => (object)[
                 'position' => '',
                 'fio' => ''
             ],
-            'logoSrc' => url('storage/omg_logo.jpg'),
+            'logoSrc' => url('storage/logo-width.jpg'),
             'todayDate' => Carbon::now()->translatedFormat('Y жыл j F'), // Текущая дата и время
         ];
     }
@@ -49,7 +52,7 @@ class PdfPreviewScreen extends Screen
      */
     public function name(): string
     {
-        return 'Справка с места работы для сотрудника '. $this->spravka->sotrudnik->fio;
+        return 'Справка с места работы для сотрудника '. $this->spravka->sotrudnik->full_name;
     }
 
     /**
@@ -69,7 +72,7 @@ class PdfPreviewScreen extends Screen
      */
     public function layout(): array
     {
-        $signer = OrganizationSigner::where('organization_id', $this->spravka->organization_id)->first();
+        $signer = OrganizationSigner::first();
 
         if(!$signer){
             Alert::error('Ошибка! Невозможно сгенерировать PDF для данной заявки. Подписант не найден для организации ID: '. $this->spravka->organization_id);
@@ -86,7 +89,8 @@ class PdfPreviewScreen extends Screen
 
 
         return [
-            Layout::view('pdf.preview_form'), // HTML-просмотр PDF
+//            Layout::view('pdf.preview_form'), // HTML-просмотр PDF
+            Layout::view('pdf.new_spravka'), // HTML-просмотр PDF
 //            Layout::columns([
 //                Layout::view('pdf.spravka_html_pdf'), // HTML-просмотр PDF
 //

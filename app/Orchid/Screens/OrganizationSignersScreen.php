@@ -22,7 +22,7 @@ class OrganizationSignersScreen extends Screen
     public function query(): iterable
     {
         return [
-            'signers' => OrganizationSigner::with('organization', 'user')->paginate(),
+            'signers' => OrganizationSigner::with('user')->paginate(),
         ];
     }
 
@@ -48,7 +48,6 @@ class OrganizationSignersScreen extends Screen
                 TD::make('status', 'Статус')->render(function (OrganizationSigner $signer) {
                     return $signer->status? '🟢 Активен' : '🔴 Неактивен';
                 }),
-                TD::make('organization.name_ru', 'Организация'),
                 TD::make('user.name', 'Пользователь'),
                 TD::make('last_name', 'Фамилия'),
                 TD::make('first_name', 'Имя'),
@@ -77,11 +76,6 @@ class OrganizationSignersScreen extends Screen
                     Switcher::make('signer.status')
                         ->sendTrueOrFalse()
                         ->title('Статус'),
-
-                    Relation::make('signer.organization_id')
-                        ->fromModel(OrganizationStructure::class, 'name_ru')
-                        ->title('Организация')
-                        ->required(),
 
                     Relation::make('signer.user_id')
                         ->fromModel(User::class, 'name')
@@ -124,7 +118,6 @@ class OrganizationSignersScreen extends Screen
     public function saveSigner(Request $request)
     {
         $data = $request->validate([
-            'signer.organization_id' => 'required|exists:organization_structure,id',
             'signer.user_id' => 'required|exists:users,id',
             'signer.last_name' => 'required|string|max:255',
             'signer.first_name' => 'required|string|max:255',

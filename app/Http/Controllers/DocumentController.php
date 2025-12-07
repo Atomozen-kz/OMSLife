@@ -40,27 +40,20 @@ class DocumentController extends Controller
     {
         // Получаем данные из запроса
         $data = $request->only([
-            'last_name',
-            'first_name',
-            'father_name',
             'signer_position',
             'signer_fio',
             'text_kz_to_pdf',
-            'text_ru_to_pdf',
             'id_spravka'
         ]);
         // Установка локали для Carbon для правильного форматирования даты
         Carbon::setLocale('kk');
         $spravka = SpravkaSotrudnikam::find($data['id_spravka']);
+
+        $sotrudnik = Sotrudniki::find($spravka->sotrudnik_id);
         // Подготовка данных для шаблона
         $pdfData = [
-            'sotrudnik' => (object)[
-                'last_name' => $data['last_name'],
-                'first_name' => $data['first_name'],
-                'father_name' => $data['father_name'],
-            ],
+            'sotrudnik' => (object) $sotrudnik,
             'text_kz' => $data['text_kz_to_pdf'],
-            'text_ru' => $data['text_ru_to_pdf'],
             'spravka'=> (object) $spravka->toArray(),
             'signer' => (object)[
                 'position' => $data['signer_position'],
@@ -75,7 +68,7 @@ class DocumentController extends Controller
 
 
 
-        $fileName = 'spravki/'.$spravka->id . '_' .$data['last_name'].'/' .$spravka->id . '_' .$data['last_name'].'_'.$data['first_name'] . '.pdf';
+        $fileName = 'spravki/'.$spravka->id . '_' .$sotrudnik->full_name . '.pdf';
 
         Storage::disk('public')->put($fileName, $pdf->output());
 
@@ -246,7 +239,7 @@ class DocumentController extends Controller
 //                echo '<br><br>';
                 $pechat = array();
 
-                $pechat[] = 'ИС "OMG Life" №'.$spravka->id.' от '.Carbon::make($spravka->signed_at)->format('d.m.Y');
+                $pechat[] = 'ИС "OMS Life" №'.$spravka->id.' от '.Carbon::make($spravka->signed_at)->format('d.m.Y');
                 $pechat[] = $certificate->getIssuer();
                 $pechat[] = 'O='.$subject->getOrganizationName();
                 $pechat[] = 'CN='.$subject->getCommonName().' '.$subject->getSerialNumber();

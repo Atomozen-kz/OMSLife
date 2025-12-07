@@ -31,6 +31,7 @@ class SpravkaSotrudnikamScreen extends Screen
      */
     public function query($success = null): iterable
     {
+
         if ($success == 'podpisana') {
             Alert::success('Справка успешно подписан');
         }
@@ -40,7 +41,7 @@ class SpravkaSotrudnikamScreen extends Screen
 
         if ($signer){
             return [
-                'spravka' => SpravkaSotrudnikam::with(['sotrudnik', 'organization'])->where('organization_id', $signer->organization_id)->orderBy('status')->orderByDesc('id')->paginate(),
+                'spravka' => SpravkaSotrudnikam::with(['sotrudnik', 'organization'])->orderBy('status')->orderByDesc('id')->paginate(),
             ];
 
         }else{

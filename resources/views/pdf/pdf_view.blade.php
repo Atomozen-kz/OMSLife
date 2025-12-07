@@ -86,9 +86,10 @@
              */
 
             signerParam = {
-                extKeyUsageOids: ['1.3.6.1.5.5.7.3.4', '1.2.398.3.3.4.1.2'],
-                iin: '{{$spravka->signer->iin}}',
-                bin: '120240020997'
+                extKeyUsageOids:[]
+                {{--extKeyUsageOids: ['1.3.6.1.5.5.7.3.4', '1.2.398.3.3.4.1.2'],--}}
+                {{--iin: '{{$spravka->signer->iin}}',--}}
+                {{--bin: '250240018961'--}}
             }
             // Показать загрузчик
             loadingOverlay.style.display = 'flex';
