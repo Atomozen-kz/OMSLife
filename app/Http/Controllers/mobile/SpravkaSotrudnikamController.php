@@ -22,14 +22,12 @@ class SpravkaSotrudnikamController extends Controller
      * @param SpravkaSotrudnikamRequest $request
      * @return JsonResponse
      */
-    public function requestCertificate(SpravkaSotrudnikamRequest $request): JsonResponse
+    public function requestCertificate(): JsonResponse
     {
         $user = auth()->user();
-        $data = $request->validated();
 
         // Проверка, существует ли уже заявка на этот месяц
-        if (SpravkaSotrudnikam::where('iin', $data['iin'])
-            ->where('organization_id', $data['organization_id'])
+        if (SpravkaSotrudnikam::where('sotrudnik_id', $user->id)
             ->where(function ($query) {
                 $query->where('status', '!=', 7)
                     ->orWhere('created_at', '>=', Carbon::now()->subDays(30));
@@ -43,8 +41,8 @@ class SpravkaSotrudnikamController extends Controller
         // Создание новой заявки
         try {
             $certificate = SpravkaSotrudnikam::create([
-                'iin' => $data['iin'],
-                'organization_id' => $data['organization_id'],
+                'iin' => $user->iin,
+                'organization_id' => $user->organization_id,
                 'sotrudnik_id' => $user->id,
                 'status' => 1,
             ]);
