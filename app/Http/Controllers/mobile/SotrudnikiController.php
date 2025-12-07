@@ -376,12 +376,24 @@ class SotrudnikiController extends Controller
         // Тестовые аккаунты - возвращаем текущие токены без обновления
         $testPhones = ['+77089222820', '+77081139347'];
         if (in_array($sotrudnik->phone_number, $testPhones)) {
-            // Находим оригинальные токены (unhashed версии недоступны, возвращаем информацию)
+            // Генерируем статичные токены для тестовых аккаунтов
+            $accessToken = 'test_access_' . md5($sotrudnik->phone_number . '_access');
+            $refreshToken = 'test_refresh_' . md5($sotrudnik->phone_number . '_refresh');
+
+            // Обновляем токены в БД, если они отличаются (первый запрос)
+            if ($sotrudnik->access_token !== hash('sha256', $accessToken)) {
+                $sotrudnik->update([
+                    'access_token' => hash('sha256', $accessToken),
+                    'refresh_token' => hash('sha256', $refreshToken),
+                    'token_expires_at' => Carbon::now()->addYears(10), // Долгий срок для тестовых аккаунтов
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Тестовый аккаунт - токены не обновляются',
-                'access_token' => $validatedData['refresh_token'], // Возвращаем тот же refresh token как заглушку
-                'refresh_token' => $validatedData['refresh_token'],
-                'expires_at' => $sotrudnik->token_expires_at ? Carbon::parse($sotrudnik->token_expires_at)->toDateTimeString() : null,
+                'access_token' => $accessToken,
+                'refresh_token' => $refreshToken,
+                'expires_at' => Carbon::now()->addYears(10)->toDateTimeString(),
                 'token_type' => 'Bearer',
             ], 200);
         }
