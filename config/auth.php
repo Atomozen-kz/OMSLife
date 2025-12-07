@@ -44,6 +44,10 @@ return [
             'driver' => 'session',
             'provider' => 'pickup_points',
         ],
+        'custom' => [
+            'driver' => 'custom-token',
+            'provider' => 'sotrudniki',
+        ],
     ],
 
     /*

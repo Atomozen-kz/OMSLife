@@ -44,7 +44,7 @@ Route::post('/getAllNews', [NewsApiController::class, 'getAllNews']);
 
 Route::post('/getOneNewsPublic', [NewsApiController::class, 'getOneNewsPublic']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:custom')->group(function () {
     Route::post('/services-vars', [ServicesVarController::class, 'index']);
 
     Route::post('/updatePhotoProfile', [SotrudnikiController::class, 'updatePhotoProfile']);
