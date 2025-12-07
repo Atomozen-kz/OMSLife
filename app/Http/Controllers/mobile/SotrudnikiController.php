@@ -381,7 +381,7 @@ class SotrudnikiController extends Controller
                 'message' => 'Тестовый аккаунт - токены не обновляются',
                 'access_token' => $validatedData['refresh_token'], // Возвращаем тот же refresh token как заглушку
                 'refresh_token' => $validatedData['refresh_token'],
-                'expires_at' => $sotrudnik->token_expires_at ? $sotrudnik->token_expires_at->toDateTimeString() : null,
+                'expires_at' => $sotrudnik->token_expires_at ? Carbon::parse($sotrudnik->token_expires_at)->toDateTimeString() : null,
                 'token_type' => 'Bearer',
             ], 200);
         }
