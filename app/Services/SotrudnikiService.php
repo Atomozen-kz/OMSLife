@@ -74,14 +74,24 @@ class SotrudnikiService{
      */
     public function verifySms(array $data)
     {
+        $tokenService = new TokenService();
 
         if ($data['phone_number'] == '+77089222820' && $data['code'] == 1234) {
             $sotrudnik = Sotrudniki::where('phone_number', $data['phone_number'])->first();
             $sotrudnik->is_registered = true;
             $sotrudnik->save();
-            $token = $sotrudnik->createToken('auth_token')->plainTextToken;
 
-            return ['message' => 'ok', 'token' => $token, 'status' => 200];
+            // Генерируем новые токены (старые автоматически инвалидируются)
+            $tokens = $tokenService->generateTokens($sotrudnik);
+
+            return [
+                'message' => 'ok',
+                'access_token' => $tokens['access_token'],
+                'refresh_token' => $tokens['refresh_token'],
+                'expires_at' => $tokens['expires_at'],
+                'token_type' => $tokens['token_type'],
+                'status' => 200
+            ];
         }
 
         // Проверка кода
@@ -106,8 +116,17 @@ class SotrudnikiService{
         $sotrudnik = Sotrudniki::where('phone_number', $data['phone_number'])->first();
         $sotrudnik->is_registered = true;
         $sotrudnik->save();
-        $token = $sotrudnik->createToken('auth_token')->plainTextToken;
 
-        return ['message' => 'ok', 'token' => $token, 'status' => 200];
+        // Генерируем новые токены (старые автоматически инвалидируются)
+        $tokens = $tokenService->generateTokens($sotrudnik);
+
+        return [
+            'message' => 'ok',
+            'access_token' => $tokens['access_token'],
+            'refresh_token' => $tokens['refresh_token'],
+            'expires_at' => $tokens['expires_at'],
+            'token_type' => $tokens['token_type'],
+            'status' => 200
+        ];
     }
 }

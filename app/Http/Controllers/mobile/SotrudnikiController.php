@@ -49,7 +49,13 @@ class SotrudnikiController extends Controller
     {
         $result = $this->sotrudnikService->verifySms($request->validated());
 
-        return response()->json(['message' => $result['message'], 'token' => $result['token'] ?? null], $result['status']);
+        return response()->json([
+            'message' => $result['message'],
+            'access_token' => $result['access_token'] ?? null,
+            'refresh_token' => $result['refresh_token'] ?? null,
+            'expires_at' => $result['expires_at'] ?? null,
+            'token_type' => $result['token_type'] ?? 'Bearer',
+        ], $result['status']);
     }
 
     /**
@@ -347,5 +353,49 @@ class SotrudnikiController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Обновить токены используя refresh token
+     */
+    public function refreshToken(Request $request)
+    {
+        $validatedData = $request->validate([
+            'refresh_token' => 'required|string',
+        ]);
+
+        $tokenService = new \App\Services\TokenService();
+        $tokens = $tokenService->refreshTokens($validatedData['refresh_token']);
+
+        if (!$tokens) {
+            return response()->json([
+                'message' => 'Недействительный refresh токен'
+            ], 401);
+        }
+
+        return response()->json([
+            'message' => 'Токены успешно обновлены',
+            'access_token' => $tokens['access_token'],
+            'refresh_token' => $tokens['refresh_token'],
+            'expires_at' => $tokens['expires_at'],
+            'token_type' => $tokens['token_type'],
+        ], 200);
+    }
+
+    /**
+     * Выход из аккаунта (удаление токенов)
+     */
+    public function logout()
+    {
+        $sotrudnik = auth()->user();
+
+        if (!$sotrudnik instanceof Sotrudniki) {
+            return response()->json(['error' => 'Пользователь не аутентифицирован.'], 401);
+        }
+
+        $tokenService = new \App\Services\TokenService();
+        $tokenService->revokeTokens($sotrudnik);
+
+        return response()->json(['message' => 'Успешный выход из аккаунта'], 200);
     }
 }

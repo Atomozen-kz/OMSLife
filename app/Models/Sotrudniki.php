@@ -37,6 +37,17 @@ class Sotrudniki extends Authenticatable
         'gender',
         'lang',
         'is_imported',
+        'access_token',
+        'refresh_token',
+        'token_expires_at',
+    ];
+
+    /**
+     * Атрибуты, которые должны быть скрыты
+     */
+    protected $hidden = [
+        'access_token',
+        'refresh_token',
     ];
 
     /**

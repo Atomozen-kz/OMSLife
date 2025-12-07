@@ -37,6 +37,7 @@ Route::post('/getFirstParentStructure', [StructureController::class, 'getFirstPa
 
 Route::post('/register', [SotrudnikiController::class, 'register']);
 Route::post('/verify-sms', [SotrudnikiController::class, 'verifySms']);
+Route::post('/refresh-token', [SotrudnikiController::class, 'refreshToken']);
 
 Route::post('/getMainNews', [NewsApiController::class, 'getMainNews']);
 Route::post('/getAllNews', [NewsApiController::class, 'getAllNews']);
@@ -56,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/birthdays', [SotrudnikiController::class, 'birthdaysList']);
     Route::post('/birthdaysSendText', [SotrudnikiController::class, 'birthdaysSendText']);
+
+    Route::post('/logout', [SotrudnikiController::class, 'logout']);
 
 //    Route::post('/getMainNews', [NewsApiController::class, 'getMainNews']);
 //    Route::post('/getAllNews', [NewsApiController::class, 'getAllNews']);

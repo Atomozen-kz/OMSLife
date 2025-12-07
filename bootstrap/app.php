@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'ability' => CheckForAnyAbility::class,
             'auth' => App\Http\Middleware\Authenticate::class,
             'payroll.auth' => App\Http\Middleware\CheckPayrollApiToken::class,
+            'auth.custom' => App\Http\Middleware\AuthenticateWithCustomToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
