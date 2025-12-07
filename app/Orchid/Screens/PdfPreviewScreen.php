@@ -29,7 +29,7 @@ class PdfPreviewScreen extends Screen
 
         $this->spravka = $spravka;
 
-        $sotrudnik = Sotrudniki::with(['position', 'organization'])->where('id', $spravka->id)->first();
+        $sotrudnik = Sotrudniki::with(['position', 'organization'])->where('id', $spravka->sotrudnik_id)->first();
 
         return [
             'spravka' => $spravka,

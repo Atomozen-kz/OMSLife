@@ -68,7 +68,7 @@ class DocumentController extends Controller
 
 
 
-        $fileName = 'spravki/'.$spravka->id . '_' .$sotrudnik->full_name . '.pdf';
+        $fileName = 'spravki/'.$spravka->id . '_' .$sotrudnik->full_name . '/Анықтама ' .$sotrudnik->full_name . '.pdf';
 
         Storage::disk('public')->put($fileName, $pdf->output());
 
