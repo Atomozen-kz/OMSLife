@@ -32,7 +32,8 @@ class FaqController extends Controller
             ->orderBy('sort', 'asc') // Сортируем по полю `sort`
             ->get(['id', 'question', 'answer']);
 
+        $result = array('data' => $faqs, 'success' => true);
         // Возвращаем JSON-ответ
-        return response()->json($faqs);
+        return response()->json($result);
     }
 }

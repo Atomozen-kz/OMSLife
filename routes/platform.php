@@ -263,3 +263,7 @@ Route::screen('/financial-assistance/request/{request}/view', \App\Orchid\Screen
 
 Route::screen('/statistics', StatisticsScreen::class)->name('platform.statistics');
 Route::screen('/statistics/{month}', StatisticsMonthDetailScreen::class)->name('platform.statistics.month');
+
+// Ремонт скважин - Цехи и Бригады
+Route::screen('/remont-brigades', \App\Orchid\Screens\RemontBrigadesScreen::class)->name('platform.remont-brigades');
+
