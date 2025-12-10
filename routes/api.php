@@ -211,3 +211,10 @@ Route::post('/send_test_push', [SotrudnikiController::class, 'send_test_push']);
 
 Route::get('/adapicCmsGetSgnerInfo/{spravka_id}', [DocumentController::class, 'adapicCmsGetSgnerInfo']);
 Route::get('/modifyPdf', [DocumentController::class, 'modifyPdf']);
+
+// Ремонт скважин - API
+Route::prefix('remont-brigades')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'index']);
+    Route::get('/workshop/{workshopId}', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'workshop']);
+});
+

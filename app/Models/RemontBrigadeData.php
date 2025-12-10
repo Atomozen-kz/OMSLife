@@ -70,19 +70,19 @@ class RemontBrigadeData extends Model
     }
 
     /**
+     * Форматирует год и месяц в строку "YYYY-MM"
+     */
+    public static function formatMonthYear(int $year, int $month): string
+    {
+        return sprintf('%04d-%02d', $year, $month);
+    }
+
+    /**
      * Получить название месяца
      */
     public function getMonthNameAttribute(): string
     {
         return self::getMonthNames()[$this->month] ?? '';
-    }
-
-    /**
-     * Создать month_year из месяца и года
-     */
-    public static function formatMonthYear(int $year, int $month): string
-    {
-        return sprintf('%04d-%02d', $year, $month);
     }
 }
 
