@@ -22,7 +22,7 @@ class UpdatePhotoProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'photo_profile' => 'required|image|mimes:jpeg,png,jpg,gif|max:4096'
+            'photo_profile' => 'required|image|mimes:jpeg,png,jpg,gif|max:8192'
         ];
     }
 
