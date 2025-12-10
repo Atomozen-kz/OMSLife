@@ -94,9 +94,9 @@ class SurveyController extends Controller
         $lang = $request->input('lang');
 
         if ($lang == 'kz') {
-            $id = 17;
+            $id = 2;
         } else {
-            $id = 18;
+            $id = 1;
         }
 //        $id = $request->input('id');
 
