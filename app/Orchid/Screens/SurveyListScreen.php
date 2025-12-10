@@ -95,20 +95,20 @@ class SurveyListScreen extends Screen
                         ->required()
                         ->help('Выберите язык опроса'),
 
-                    Switcher::make('survey.is_all')
-                        ->title('Доступен всем сотрудникам')
-                        ->sendTrueOrFalse()
-                        ->help('Если отключено, выберите организации, для которых доступен опрос')
-                        ->addClass('is-all-switcher'),
+//                    Switcher::make('survey.is_all')
+//                        ->title('Доступен всем сотрудникам')
+//                        ->sendTrueOrFalse()
+//                        ->help('Если отключено, выберите организации, для которых доступен опрос')
+//                        ->addClass('is-all-switcher'),
 
                     // Поле для выбора организаций, отображается только если is_all = false
-                    Relation::make('survey.organizations')
-                        ->title('Организации')
-                        ->fromModel(OrganizationStructure::class, 'name_ru') // Или другое поле для отображения
-                        ->multiple()
-                        ->addClass('organizations-field') // Уникальный класс
-                        ->applyScope('FirstParent')
-                        ->help('Выберите организации, для которых доступен опрос'),
+//                    Relation::make('survey.organizations')
+//                        ->title('Организации')
+//                        ->fromModel(OrganizationStructure::class, 'name_ru') // Или другое поле для отображения
+//                        ->multiple()
+//                        ->addClass('organizations-field') // Уникальный класс
+//                        ->applyScope('FirstParent')
+//                        ->help('Выберите организации, для которых доступен опрос'),
 
                     Input::make('survey.title')
                         ->title('Название опроса')
@@ -193,10 +193,11 @@ class SurveyListScreen extends Screen
 
     public function createOrUpdateSurvey(\Illuminate\Http\Request $request)
     {
-        $isAll = $request['survey']['is_all'];
-        if ($request['survey']['organizations'] == null){
-            $isAll = true;
-        }
+//        $isAll = $request['survey']['is_all'];
+//        if ($request['survey']['organizations'] == null){
+//            $isAll = true;
+//        }
+        $isAll = true;
         $survey = Survey::updateOrCreate(
             ['id' => $request['survey']['id'] ?? null],
             [
@@ -208,12 +209,12 @@ class SurveyListScreen extends Screen
                 'is_all' => $isAll,
             ]
         );
-        // Обновление связи с организациями
-        if (!$survey->is_all) {
-            $survey->organizations()->sync($request->input('survey.organizations', []));
-        } else {
-            $survey->organizations()->detach();
-        }
+//        // Обновление связи с организациями
+//        if (!$survey->is_all) {
+//            $survey->organizations()->sync($request->input('survey.organizations', []));
+//        } else {
+//            $survey->organizations()->detach();
+//        }
 
 
         Alert::info('Опрос успешно сохранен.');
