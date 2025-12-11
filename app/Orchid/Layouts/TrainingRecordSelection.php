@@ -19,7 +19,8 @@ class TrainingRecordSelection extends Selection
      */
     public function filters(): array
     {
-        $isAdmin = (new \App\Models\User)->isAdmin();
+        $user = auth()->user();
+        $isAdmin = $user && $user->hasAccess('platform.training-center-admin');
 
         $filters = [
             TrainingTypeFilter::class,
