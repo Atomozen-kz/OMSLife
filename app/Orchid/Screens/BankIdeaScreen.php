@@ -56,10 +56,10 @@ class BankIdeaScreen extends Screen
         return [
             Layout::legend('bankIdea', [
                 Sight::make('problem', 'Описание проблемы')
-                    ->render(fn(BankIdea $idea) =>  $idea->problem ?? '(старая версия: title)'.$idea->title ),
+                    ->render(fn(BankIdea $idea) => $idea->problem ?? '-'),
 
                 Sight::make('solution', 'Предлагаемое решение')
-                    ->render(fn(BankIdea $idea) => $idea->solution ?? ' (старая версия: description) '. $idea->description ),
+                    ->render(fn(BankIdea $idea) => $idea->solution ?? '-'),
 
                 Sight::make('expected_effect', 'Ожидаемый эффект')
                     ->render(fn(BankIdea $idea) => $idea->expected_effect ?? '-'),

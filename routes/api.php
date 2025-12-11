@@ -4,7 +4,6 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentSignController;
 use App\Http\Controllers\mobile\ApiPayrollSlipController;
 use App\Http\Controllers\mobile\AppealController;
-use App\Http\Controllers\mobile\BankIdeaController;
 use App\Http\Controllers\mobile\BankIdeaV2Controller;
 use App\Http\Controllers\mobile\ChatController;
 use App\Http\Controllers\mobile\ExtractionApiController;
@@ -139,15 +138,15 @@ Route::middleware('auth:custom')->group(function () {
     Route::post('/payroll-slip/disable', [ApiPayrollSlipController::class, 'disablePayrollSlip']);
 
 
-    Route::post('/bank-ideas/all', [BankIdeaController::class, 'all']);
-    Route::post('/bank-ideas/my-ideas', [BankIdeaController::class, 'myIdeas']);
-    Route::post('/bank-ideas/one', [BankIdeaController::class, 'one']);
-    Route::post('/bank-ideas/store', [BankIdeaController::class, 'store']);
-    Route::post('/bank-ideas/update-idea/{id}', [BankIdeaController::class, 'updateIdea']);
-    Route::post('/bank-ideas/delete-idea/{id}', [BankIdeaController::class, 'deleteIdea']);
-    Route::post('/bank-ideas/{id}/vote', [BankIdeaController::class, 'vote']);
-    Route::post('/bank-ideas/{id}/comment', [BankIdeaController::class, 'comment']);
-    Route::post('/bank-ideas/delete_comment/{id}', [BankIdeaController::class, 'deleteComment']);
+    Route::post('/bank-ideas/all', [BankIdeaV2Controller::class, 'all']);
+    Route::post('/bank-ideas/my-ideas', [BankIdeaV2Controller::class, 'myIdeas']);
+    Route::post('/bank-ideas/one', [BankIdeaV2Controller::class, 'one']);
+    Route::post('/bank-ideas/store', [BankIdeaV2Controller::class, 'store']);
+    Route::post('/bank-ideas/update-idea/{id}', [BankIdeaV2Controller::class, 'updateIdea']);
+    Route::post('/bank-ideas/delete-idea/{id}', [BankIdeaV2Controller::class, 'deleteIdea']);
+    Route::post('/bank-ideas/{id}/vote', [BankIdeaV2Controller::class, 'vote']);
+    Route::post('/bank-ideas/{id}/comment', [BankIdeaV2Controller::class, 'comment']);
+    Route::post('/bank-ideas/delete_comment/{id}', [BankIdeaV2Controller::class, 'deleteComment']);
 
     // V2 API (backwards compatible) — добавляем только новый метод getTypesForBankIdeas, остальные методы переадресованы на v1
     Route::prefix('v2')->group(function () {

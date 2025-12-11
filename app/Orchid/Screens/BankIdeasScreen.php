@@ -113,7 +113,7 @@ class BankIdeasScreen extends Screen
         return [
             TD::make('title_link', 'Название')
                 ->render(function (BankIdea $idea) {
-                    return Link::make($idea->problem ?? $idea->title)
+                    return Link::make($idea->problem)
                         ->route('platform.screens.idea.view', ['bankIdea' => $idea->id]);
                 }),
 
@@ -127,18 +127,6 @@ class BankIdeasScreen extends Screen
                     return $idea->solution ?? '-';
                 }),
 
-            // old fields hidden
-            TD::make('title', 'Название (старый)')
-                ->canSee(false)
-                ->render(function (BankIdea $idea) {
-                    return $idea->title ?? '-';
-                }),
-
-            TD::make('description', 'Описание (старый)')
-                ->canSee(false)
-                ->render(function (BankIdea $idea) {
-                    return $idea->description ?? '-';
-                }),
 
             TD::make('expected_effect', 'Ожидаемый эффект')
                 ->render(function (BankIdea $idea) {

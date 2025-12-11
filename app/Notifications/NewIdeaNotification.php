@@ -41,7 +41,7 @@ class NewIdeaNotification extends Notification implements ShouldQueue
             ->greeting('Уважаемый модератор,')
             ->line('Поступила новая идея, требующая вашей проверки и модерации.')
 //            ->line('ID идеи: ' . $this->idea->id)
-            ->line('Название: ' . $this->idea->title)
+            ->line('Описание проблемы: ' . $this->idea->problem)
             ->line('Автор: ' . $this->idea->author->full_name)
             ->action('Просмотреть идею', url('/admin/idea/' . $this->idea->id))
             ->line('Спасибо за участие в улучшении нашей платформы!');

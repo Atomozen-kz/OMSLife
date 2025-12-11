@@ -31,9 +31,6 @@ class BankIdea extends Model
         'expected_effect', // Ожидаемый эффект
         'status',
         'id_sotrudnik',
-        // legacy fields kept for backward compatibility
-        'title',
-        'description',
     ];
 
     protected $casts = [
@@ -45,26 +42,6 @@ class BankIdea extends Model
         return self::$statusLabels[$this->status] ?? 'Неизвестно';
     }
 
-    // Accessors / Mutators to keep backward compatibility with existing code
-    public function getTitleAttribute()
-    {
-        return $this->attributes['problem'] ?? ($this->attributes['title'] ?? null);
-    }
-
-    public function setTitleAttribute($value)
-    {
-        $this->attributes['problem'] = $value;
-    }
-
-    public function getDescriptionAttribute()
-    {
-        return $this->attributes['solution'] ?? ($this->attributes['description'] ?? null);
-    }
-
-    public function setDescriptionAttribute($value)
-    {
-        $this->attributes['solution'] = $value;
-    }
 
     public function author()
     {

@@ -197,8 +197,6 @@ class BankIdeaV2Controller extends Controller
             'problem' => $idea->problem,
             'solution' => $idea->solution,
             'expected_effect' => $idea->expected_effect,
-            'title_old' => $idea->title, // Старое поле
-            'description_old' => $idea->description, // Старое поле
             'status' => $idea->status,
             'status_text' => $statusText,
             'created_at' => $idea->created_at,
@@ -558,8 +556,6 @@ class BankIdeaV2Controller extends Controller
             'problem' => $idea->problem,
             'solution' => $idea->solution,
             'expected_effect' => $idea->expected_effect,
-            'title_old' => $idea->title,
-            'description_old' => $idea->description,
             'status' => $idea->status,
             'status_text' => $statusText,
             'created_at' => $idea->created_at,
