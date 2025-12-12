@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CeoBlogController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentSignController;
 use App\Http\Controllers\mobile\ApiPayrollSlipController;
@@ -180,6 +181,10 @@ Route::middleware('auth:custom')->group(function () {
 
         Route::post('archive/{sotrudnikId}', [ChatController::class, 'archiveChat']);
     });
+
+    // Маршрут для блога генерального директора — возвращает JSON
+    Route::get('/ceo-blog', [CeoBlogController::class, 'index'])->name('ceo.blog');
+
 
     // END AUTH GROUPS
 });
