@@ -14,7 +14,7 @@ class PromzonaGeoObjectController extends Controller
 
        $response = Http::withHeaders([
            'Authorization' => 'Bearer ' . $token,
-       ])->get('https://omglife.kz/api/promzona-all-data');
+       ])->post('https://omglife.kz/api/promzona-all-data');
 
        if ($response->successful()) {
            return response()->json($response->json());
