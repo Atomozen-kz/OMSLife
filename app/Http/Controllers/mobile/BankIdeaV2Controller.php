@@ -164,7 +164,7 @@ class BankIdeaV2Controller extends Controller
                 ])->latest();
             },
             'files',
-            'statusHistory.user:id,full_name'
+            'statusHistory.user:id,name'
         ])
             ->withCount([
                 'votes as upvotes' => function ($query) {
@@ -237,7 +237,7 @@ class BankIdeaV2Controller extends Controller
                 return [
                     'status_id' => $history->status_id,
                     'status_text' => $historyStatusText,
-                    'user' => optional($history->user)->full_name,
+                    'user' => optional($history->user)->name,
                     'created_at' => $history->created_at,
                 ];
             }),
