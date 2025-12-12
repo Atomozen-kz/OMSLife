@@ -109,19 +109,13 @@ Route::middleware('auth:custom')->group(function () {
     });
 
 
-    Route::prefix('/promzona')->group(function () {
-        Route::post('objects', [PromzonaController::class, 'getObjects']);
-        Route::post('filters', [PromzonaController::class, 'getFilters']);
-        Route::post('search', [PromzonaController::class, 'searchObjects']);
-        Route::post('add', [PromzonaController::class, 'addObject']);
-    });
-
     Route::post('/training-records', [TrainingRecordController::class, 'getTrainingRecords']);
 
     Route::post('/extraction/getMainScreenData', [ExtractionApiController::class, 'getMainScreenData']);
     Route::post('/extraction/getMonthData', [ExtractionApiController::class, 'getMonthData']);
 
-    Route::post('/promzona/searchByName', [PromzonaGeoObjectController::class, 'searchByName']);
+//    Route::post('/promzona/searchByName', [PromzonaGeoObjectController::class, 'searchByName']);
+    Route::post('/promzonaAllData', [PromzonaGeoObjectController::class, 'index']);
 
     Route::post('/faqs', [FaqController::class, 'getFaqs']);
 

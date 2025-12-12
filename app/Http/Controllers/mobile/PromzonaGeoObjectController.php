@@ -5,39 +5,24 @@ namespace App\Http\Controllers\mobile;
 use App\Http\Controllers\Controller;
 use App\Models\PromzonaGeoObject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class PromzonaGeoObjectController extends Controller
 {
-    /**
-     * Search for PromzonaGeoObjects by name.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function searchByName(Request $request)
-    {
-        $query = $request->input('query');
+   public function index(){
+       $token = config('app.promzonaGeoObjectsApiToken');
 
-        // Разбиваем запрос на слова и разделяем слипающиеся цифры и буквы, включая кириллические символы
-        $query = preg_replace('/([\p{L}\-]+)(\d+)/u', '$1 $2', $query);
-        $query = preg_replace('/(\d+)([\p{L}\-]+)/u', '$1 $2', $query);
+       $response = Http::withHeaders([
+           'Authorization' => 'Bearer ' . $token,
+       ])->get('https://omglife.kz/api/promzona-all-data');
 
-        $keywords = preg_split('/\s+/', $query);
+       if ($response->successful()) {
+           return response()->json($response->json());
+       }
 
-        $results = PromzonaGeoObject::where(function ($q) use ($keywords) {
-            foreach ($keywords as $keyword) {
-                $q->where('name', 'like', "%$keyword%");
-            }
-        })
-            ->limit(15)
-            ->get(['id', 'name', 'id_type', 'comment', 'geometry']);
-
-        // Decode the geometry field from JSON
-        $results->transform(function ($item) {
-            $item->geometry = json_decode($item->geometry);
-            return $item;
-        });
-
-        return response()->json($results);
-    }
+       return response()->json([
+           'error' => 'Не удалось получить данные',
+           'message' => $response->body()
+       ], $response->status());
+   }
 }
