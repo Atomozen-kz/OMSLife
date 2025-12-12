@@ -18,6 +18,10 @@ class BankIdeasStatusHistory extends Model
         'note',
     ];
 
+    public function user(){
+        return $this->belongsTo(Sotrudniki::class, 'changed_by');
+    }
+
     public function idea()
     {
         return $this->belongsTo(BankIdea::class, 'bank_idea_id');
