@@ -23,7 +23,7 @@ class BankIdeaV2Controller extends Controller
         $lang = $request->input('lang', 'ru'); // Get lang from request, default 'ru'
 
         $ideas = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile'
+            'author:id,full_name,photo_profile'
         ])
             ->withCount([
                 'votes as upvotes' => function ($query) {
@@ -61,8 +61,7 @@ class BankIdeaV2Controller extends Controller
                 'comments_count' => $idea->comments_count,
                 'author' => [
                     'id' => optional($idea->author)->id,
-                    'first_name' => optional($idea->author)->first_name,
-                    'last_name' => optional($idea->author)->last_name,
+                    'full_name' => optional($idea->author)->full_name,
                     'photo_profile' => optional($idea->author)->photo_profile ? Storage::disk('public')->url($idea->author->photo_profile) : null
                 ]
             ];
@@ -87,7 +86,7 @@ class BankIdeaV2Controller extends Controller
         $lang = $request->input('lang', 'ru');
 
         $ideas = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile',
+            'author:id,full_name,photo_profile',
             'files:id,id_idea,path_to_file'
         ])
             ->withCount([
@@ -127,8 +126,7 @@ class BankIdeaV2Controller extends Controller
                 'comments_count' => $idea->comments_count,
                 'author' => [
                     'id' => optional($idea->author)->id,
-                    'first_name' => optional($idea->author)->first_name,
-                    'last_name' => optional($idea->author)->last_name,
+                    'full_name' => optional($idea->author)->full_name,
                     'photo_profile' => optional($idea->author)->photo_profile ? Storage::disk('public')->url($idea->author->photo_profile) : null
                 ],
                 'files' => $idea->files->map(function ($file) {
@@ -158,15 +156,15 @@ class BankIdeaV2Controller extends Controller
         $sotrudnik = auth()->user();
 
         $idea = BankIdea::with([
-            'author:id,first_name,last_name,photo_profile',
+            'author:id,full_name,photo_profile',
             'type:id,name_ru,name_kz',
             'comments' => function ($query) use ($sotrudnik) {
                 $query->with([
-                    'author:id,first_name,last_name,photo_profile'
+                    'author:id,full_name,photo_profile'
                 ])->latest();
             },
             'files',
-            'statusHistory.user:id,first_name,last_name'
+            'statusHistory.user:id,full_name'
         ])
             ->withCount([
                 'votes as upvotes' => function ($query) {
@@ -207,8 +205,7 @@ class BankIdeaV2Controller extends Controller
             'my_self' => $idea->author->id == $sotrudnik->id,
             'author' => [
                 'id' => $idea->author->id,
-                'first_name' => $idea->author->first_name,
-                'last_name' => $idea->author->last_name,
+                'full_name' => $idea->author->full_name,
                 'photo_profile' => $idea->author->photo_profile ? Storage::disk('public')->url($idea->author->photo_profile) : null
             ],
             'type' => $idea->type ? [
@@ -222,8 +219,7 @@ class BankIdeaV2Controller extends Controller
                     'created_at' => $comment->created_at,
                     'author' => [
                         'id' => $comment->author->id,
-                        'first_name' => $comment->author->first_name,
-                        'last_name' => $comment->author->last_name,
+                        'full_name' => $comment->author->full_name,
                         'photo_profile' => $comment->author->photo_profile ? Storage::disk('public')->url($comment->author->photo_profile) : null
                     ],
                     'can_delete' => $comment->id_sotrudnik === $sotrudnik->id
@@ -428,8 +424,7 @@ class BankIdeaV2Controller extends Controller
                 'created_at' => $comment->created_at,
                 'author' => [
                     'id' => $sotrudnik->id,
-                    'first_name' => $sotrudnik->first_name,
-                    'last_name' => $sotrudnik->last_name,
+                    'full_name' => $sotrudnik->full_name,
                     'photo_profile' => $sotrudnik->photo_profile
                         ? Storage::disk('public')->url($sotrudnik->photo_profile)
                         : null
@@ -567,8 +562,7 @@ class BankIdeaV2Controller extends Controller
             'my_self' => $idea->id_sotrudnik == $userId,
             'author' => [
                 'id' => optional($idea->author)->id,
-                'first_name' => optional($idea->author)->first_name,
-                'last_name' => optional($idea->author)->last_name,
+                'full_name' => optional($idea->author)->full_name,
                 'photo_profile' => optional($idea->author)->photo_profile ? Storage::disk('public')->url($idea->author->photo_profile) : null,
             ],
             'type' => $idea->type ? [
@@ -582,8 +576,7 @@ class BankIdeaV2Controller extends Controller
                     'created_at' => $comment->created_at,
                     'author' => [
                         'id' => optional($comment->author)->id,
-                        'first_name' => optional($comment->author)->first_name,
-                        'last_name' => optional($comment->author)->last_name,
+                        'full_name' => optional($comment->author)->full_name,
                         'photo_profile' => optional($comment->author)->photo_profile ? Storage::disk('public')->url($comment->author->photo_profile) : null,
                     ],
                     'can_delete' => $comment->id_sotrudnik === $userId,

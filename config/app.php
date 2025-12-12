@@ -127,6 +127,7 @@ return [
         'orc' => \Orchid\IconPack\Path::getFolder(),
     ],
     'payrollApiToken' => env('PAYROLL_API_TOKEN', ''),
+    'promzonaGeoObjectsApiToken' => env('PROMZONA_GEO_OBJECTS_API_TOKEN', ''),
     'openMeteoApiKey' => env('OPEN_METEO_API_KEY', ''),
     'smsServiceUrl' => env('SMS_SERVICE_URL', ''),
     'smsServiceLogin' => env('SMS_SERVICE_LOGIN', ''),
