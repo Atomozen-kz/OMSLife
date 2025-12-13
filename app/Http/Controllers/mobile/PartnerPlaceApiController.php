@@ -71,7 +71,7 @@ class PartnerPlaceApiController extends Controller
 
         if ($recentVisit) {
             $nextAllowedTime = Carbon::parse($recentVisit->visited_at)->addHours(2);
-            $minutesLeft = now()->diffInMinutes($nextAllowedTime, false);
+            $minutesLeft = (int) now()->diffInMinutes($nextAllowedTime, false);
 
             return response()->json([
                 'success' => false,
