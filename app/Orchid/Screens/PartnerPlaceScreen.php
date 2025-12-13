@@ -6,6 +6,7 @@ use App\Models\PartnerPlace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Orchid\Screen\Actions\Button;
+use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Actions\ModalToggle;
 use Orchid\Screen\Fields\Input;
 use Orchid\Screen\Fields\Picture;
@@ -84,7 +85,12 @@ class PartnerPlaceScreen extends Screen
                 TD::make('qr_code', 'QR-код (UUID)')
                     ->width('280px')
                     ->render(function (PartnerPlace $place) {
-                        return "<code style='font-size: 11px;'>{$place->qr_code}</code>";
+                        $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($place->qr_code);
+                        return "<code style='font-size: 11px;'>{$place->qr_code}</code><br>" .
+                            Link::make('Скачать QR')
+                                ->href($qrUrl . '&format=png&download=1')
+                                ->target('_blank')
+                                ->icon('cloud-download');
                     }),
 
                 TD::make('username', 'Логин')
