@@ -46,6 +46,7 @@
     <div class="alert alert-info mb-4">
         <strong>QR-код для сканирования:</strong>
         <code class="ms-2">{{ $partnerPlace->qr_code }}</code>
+        <a href="https://api.qrserver.com/v1/create-qr-code/?size=900x900&data={{ urlencode($partnerPlace->qr_code)}}">Скачать QR code</a>
     </div>
 
     <!-- Фильтр по дате -->

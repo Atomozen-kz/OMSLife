@@ -85,7 +85,7 @@ class PartnerPlaceScreen extends Screen
                 TD::make('qr_code', 'QR-код (UUID)')
                     ->width('280px')
                     ->render(function (PartnerPlace $place) {
-                        $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=' . urlencode($place->qr_code);
+                        $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=900x900&data=' . urlencode($place->qr_code);
                         return "<code style='font-size: 11px;'>{$place->qr_code}</code><br>" .
                             Link::make('Скачать QR')
                                 ->href($qrUrl . '&format=png&download=1')
