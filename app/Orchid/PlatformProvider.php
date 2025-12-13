@@ -115,6 +115,12 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.pickup-point')
             ,
 
+            Menu::make('Посещаемые места')
+                ->icon('bs.geo-alt-fill')
+                ->route('platform.partner-places')
+                ->permission('platform.partner-places')
+            ,
+
             Menu::make('Карты лояльности')
                 ->icon('bs.percent')
                 ->route('platform.loyalty-cards')
@@ -301,6 +307,7 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Сервисы')
                 ->addPermission('platform.pickup-point', 'Пункты выдачи молока')
+                ->addPermission('platform.partner-places', 'Посещаемые места')
                 ->addPermission('platform.loyalty-cards', 'Карты лояльности'),
 
             ItemPermission::group('Статистика')

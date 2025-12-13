@@ -185,6 +185,14 @@ Route::middleware('auth:custom')->group(function () {
     // Маршрут для блога генерального директора — возвращает JSON
     Route::get('/ceo-blog', [CeoBlogController::class, 'index'])->name('ceo.blog');
 
+    // Посещаемые места (партнёры)
+    Route::prefix('partner-places')->group(function () {
+        Route::post('/list', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'getPartnerPlaces']);
+        Route::post('/confirm-visit', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'confirmVisit']);
+        Route::post('/my-visits', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'getMyVisits']);
+        Route::post('/my-stats', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'getMyVisitsStats']);
+    });
+
 
     // END AUTH GROUPS
 });

@@ -51,6 +51,19 @@ Route::prefix('pickup')->group(function () {
     });
 });
 
+// Посещаемые места (партнёры) - дашборд
+Route::prefix('partner-place')->group(function () {
+    Route::get('/login', [\App\Http\Controllers\PartnerPlaceDashboardController::class, 'showLoginForm'])->name('partner-place.loginForm');
+    Route::post('/login', [\App\Http\Controllers\PartnerPlaceDashboardController::class, 'login'])->name('partner-place.login');
+
+    // Группа, защищённая авторизацией partner_place
+    Route::middleware('auth:partner_place')->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\PartnerPlaceDashboardController::class, 'dashboard'])->name('partner-place.dashboard');
+        Route::post('/logout', [\App\Http\Controllers\PartnerPlaceDashboardController::class, 'logout'])->name('partner-place.logout');
+        Route::get('/', [\App\Http\Controllers\PartnerPlaceDashboardController::class, 'dashboard']);
+    });
+});
+
 Route::prefix('admin')->group(function (){
     Route::get('/export-training-records', [TrainingCenterScreen::class, 'exportExcel'])
         ->name('training.export');

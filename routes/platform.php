@@ -267,3 +267,6 @@ Route::screen('/statistics/{month}', StatisticsMonthDetailScreen::class)->name('
 // Ремонт скважин - Цехи и Бригады
 Route::screen('/remont-brigades', \App\Orchid\Screens\RemontBrigadesScreen::class)->name('platform.remont-brigades');
 
+// Посещаемые места (партнёры)
+Route::screen('/partner-places', \App\Orchid\Screens\PartnerPlaceScreen::class)->name('platform.partner-places');
+

@@ -44,6 +44,10 @@ return [
             'driver' => 'session',
             'provider' => 'pickup_points',
         ],
+        'partner_place' => [
+            'driver' => 'session',
+            'provider' => 'partner_places',
+        ],
         'custom' => [
             'driver' => 'custom-token',
             'provider' => 'sotrudniki',
@@ -75,6 +79,10 @@ return [
         'pickup_points' => [
             'driver' => 'eloquent',
             'model' => App\Models\PickupPoint::class,
+        ],
+        'partner_places' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\PartnerPlace::class,
         ],
         'sotrudniki' => [
             'driver' => 'eloquent',
