@@ -25,4 +25,11 @@ class PromzonaGeoObjectController extends Controller
            'message' => $response->body()
        ], $response->status());
    }
+
+   public function map_version()
+   {
+       return response()->json([
+           'version' => 1,
+       ]);
+   }
 }

@@ -117,6 +117,7 @@ Route::middleware('auth:custom')->group(function () {
 
 //    Route::post('/promzona/searchByName', [PromzonaGeoObjectController::class, 'searchByName']);
     Route::post('/promzonaAllData', [PromzonaGeoObjectController::class, 'index']);
+    Route::get('/promzonaAllData/version', [PromzonaGeoObjectController::class, 'map_version']);
 
     Route::post('/faqs', [FaqController::class, 'getFaqs']);
 
