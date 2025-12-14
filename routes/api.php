@@ -184,7 +184,7 @@ Route::middleware('auth:custom')->group(function () {
     });
 
     // Маршрут для блога генерального директора — возвращает JSON
-    Route::get('/ceo-blog', [CeoBlogController::class, 'index'])->name('ceo.blog');
+    Route::post('/ceo-blog', [CeoBlogController::class, 'index'])->name('ceo.blog');
 
     // Посещаемые места (партнёры)
     Route::prefix('partner-places')->group(function () {
