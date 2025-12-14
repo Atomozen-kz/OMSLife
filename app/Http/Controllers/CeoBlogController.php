@@ -14,11 +14,11 @@ class CeoBlogController extends Controller
     public function index(): JsonResponse
     {
         $data = [
-            'full_name' => 'Алексей Петров',
-            'text' => "Добро пожаловать в блог генерального директора. Здесь будут опубликованы важные сообщения и размышления о развитии компании и общества.",
-            'photo' => url('/storage/ceo/photo.jpg'),
-            'aitu_url' => 'https://aitu.example.com/alexey.petrov',
-            'instagram_url' => 'https://instagram.com/alexey.petrov',
+            'full_name' => 'Шыракбаев Дамир Алибекович',
+            'text' => " ",
+            'photo' => "https://omslife.kz/storage/ceo_photo.png",
+            'aitu_url' => ' ',
+            'instagram_url' => 'https://www.instagram.com/damir_shyrakbayev/',
         ];
 
         return response()->json($data);
