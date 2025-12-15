@@ -30,6 +30,9 @@ class SurveyController extends Controller
     {
         $user = auth()->user(); // Предполагается, что пользователь связан с моделью Sotrudniki
         $lang = $request->input('lang');
+        if (!in_array($lang, ['ru', 'kz'])) {
+            $lang = 'ru';
+        }
 
         $availableSurveys = $this->surveyService->getAvailableSurveys($user, $lang);
 
@@ -49,6 +52,9 @@ class SurveyController extends Controller
     {
         $user = auth()->user();
         $lang = $request->input('lang');
+        if (!in_array($lang, ['ru', 'kz'])) {
+            $lang = 'ru';
+        }
         $allSurveys = $this->surveyService->getAllSurveys($user, $lang);
 
         return response()->json([

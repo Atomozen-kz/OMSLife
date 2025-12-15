@@ -60,6 +60,9 @@ class LoyaltyCardController extends Controller
     public function categories(GetLoyaltyCardsCategoriesRequest $request): JsonResponse
     {
         $lang = $request->input('lang');
+        if (!in_array($lang, ['ru', 'kz'])) {
+            $lang = 'ru';
+        }
         $langColumn = 'name_' . $lang;
         $categoriesList = LoyaltyCardsCategory::where('status',1)->select('id', $langColumn,'image_path','color_rgb')->get()->map(function ($category) {
             $category->url = url($category->image_path);

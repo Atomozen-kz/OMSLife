@@ -27,6 +27,11 @@ class ServicesVarController extends Controller
     {
         try {
             $lang = $request->input('lang');
+
+            if (!in_array($lang, ['ru', 'kz'])) {
+             $lang = 'ru';
+            }
+
             $data = $this->servicesVarApiService->getServicesVarsByLang($lang);
 
             return response()->json(array('data' => $data, 'success'=>true), 200);

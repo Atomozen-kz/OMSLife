@@ -26,6 +26,9 @@ class GlobalPageController extends Controller
     public function index(Request $request)
     {
         $lang = $request->input('lang');
+        if (!in_array($lang, ['ru', 'kz'])) {
+            $lang = 'ru';
+        }
         $langColumn = 'name_' . $lang;
         $pages = GlobalPage::select('id', $langColumn, 'slug')->get();
 

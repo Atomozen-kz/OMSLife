@@ -28,9 +28,10 @@ class PickupPointController extends Controller
     {
         $pickupPoints = $this->pickupPointService->getPickupPointsForApi();
         $sotrudnik = auth()->user();
+
         return response()->json([
             'success' => true,
-            'milk_code' => $sotrudnik->milkCodes ? $sotrudnik->milkCodes->code : null,
+            'milk_code' => $sotrudnik->tabel_nomer.'-'.$sotrudnik->full_name,
             'data' => $pickupPoints,
         ]);
     }
