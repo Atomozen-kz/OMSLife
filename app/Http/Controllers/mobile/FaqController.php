@@ -29,7 +29,7 @@ class FaqController extends Controller
         $faqs = Faq::where('status', true)
             ->where('id_category', $id_category)
             ->where('lang', $lang)
-            ->orderBy('sort', 'asc') // Сортируем по полю `sort`
+            ->orderBy('id', 'asc') // Сортируем по полю `sort`
             ->get(['id', 'question', 'answer']);
 
         $result = array('data' => $faqs, 'success' => true);
