@@ -26,6 +26,24 @@ class PromzonaGeoObjectController extends Controller
        ], $response->status());
    }
 
+   public function files()
+   {
+       $token = config('app.promzonaGeoObjectsApiToken');
+
+       $response = Http::withHeaders([
+           'Authorization' => 'Bearer ' . $token,
+       ])->get('https://omglife.kz/api/promzona/files');
+
+       if ($response->successful()) {
+            return response()->json(array_merge($response->json() ?? [], ['token' => $token]));
+       }
+
+       return response()->json([
+           'error' => 'Не удалось получить данные',
+           'message' => $response->body()
+       ], $response->status());
+   }
+
    public function map_version()
    {
        return response()->json([
