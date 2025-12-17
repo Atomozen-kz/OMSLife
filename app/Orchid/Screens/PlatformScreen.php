@@ -96,10 +96,10 @@ class PlatformScreen extends Screen
                 ->type('bar'),
 
 //            ChartLineExample::make('chartExtractionData', 'Добыча нефти по компаниям'),
-            Layout::chart('chartExtractionData', 'Добыча нефти по компаниям')
-                ->type('line') // Линейный график
-                ->export(true) // Включаем экспорт графика
-                ->height(350), // Высота графика
+//            Layout::chart('chartExtractionData', 'Добыча нефти по компаниям')
+//                ->type('line') // Линейный график
+//                ->export(true) // Включаем экспорт графика
+//                ->height(350), // Высота графика
 
 //            Layout::view('platform::partials.update-assets'),
 //            Layout::view('platform::partials.welcome'),
