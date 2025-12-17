@@ -322,7 +322,7 @@ class LoyaltyCardListScreen extends Screen
         $data = $request->validate([
             'category.id'         => 'nullable|integer',
             'category.name_ru'      => 'nullable|string',
-            'category.name_kz'      => 'nullable|string',
+            'category.name_kk'      => 'nullable|string',
             'category.color_rgb'    => 'nullable',
             'category.image_path' => 'nullable|string',
         ]);
