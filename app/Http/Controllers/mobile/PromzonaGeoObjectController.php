@@ -17,7 +17,12 @@ class PromzonaGeoObjectController extends Controller
        ])->post('https://omglife.kz/api/promzona-all-data');
 
        if ($response->successful()) {
-           return response()->json($response->json());
+           $data = $response->json();
+           $jsonContent = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+           return response($jsonContent)
+               ->header('Content-Type', 'application/json')
+               ->header('Content-Disposition', 'attachment; filename="promzona_data.json"');
        }
 
        return response()->json([
