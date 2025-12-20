@@ -226,6 +226,7 @@ Route::get('/modifyPdf', [DocumentController::class, 'modifyPdf']);
 // Ремонт скважин - API
 Route::prefix('remont-brigades')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'index']);
+    Route::get('/locations', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'locations']);
     Route::get('/workshop/{workshopId}', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'workshop']);
 });
 

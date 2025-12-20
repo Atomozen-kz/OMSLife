@@ -11,7 +11,13 @@ class RemontBrigade extends Model
 {
     use AsSource;
 
-    protected $fillable = ['name', 'parent_id'];
+    protected $fillable = ['name', 'parent_id', 'latitude', 'longitude', 'location_updated_at'];
+
+    protected $casts = [
+        'latitude' => 'decimal:8',
+        'longitude' => 'decimal:8',
+        'location_updated_at' => 'datetime',
+    ];
 
     /**
      * Родительский цех (для бригад)

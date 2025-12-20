@@ -205,5 +205,34 @@ class RemontBrigadeController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Получить координаты всех бригад
+     *
+     * @return JsonResponse
+     */
+    public function locations(): JsonResponse
+    {
+        $brigades = RemontBrigade::brigades()
+            ->select('id', 'name', 'parent_id', 'latitude', 'longitude', 'location_updated_at')
+            ->with('parent:id,name')
+            ->get()
+            ->map(function ($brigade) {
+                return [
+                    'id' => $brigade->id,
+                    'name' => $brigade->name,
+                    'workshop_id' => $brigade->parent_id,
+                    'workshop_name' => $brigade->parent?->name,
+                    'latitude' => $brigade->latitude,
+                    'longitude' => $brigade->longitude,
+                    'location_updated_at' => $brigade->location_updated_at?->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $brigades,
+        ]);
+    }
 }
 

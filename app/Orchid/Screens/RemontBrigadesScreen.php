@@ -30,7 +30,12 @@ class RemontBrigadesScreen extends Screen
      */
     public function query(Request $request): iterable
     {
-        $this->workshopId = $request->get('workshop_id') ? (int) $request->get('workshop_id') : null;
+        // Получаем workshop_id из query параметров или из тела запроса (для async модальных окон)
+        $workshopIdFromQuery = $request->get('workshop_id');
+        $workshopIdFromBody = $request->input('workshop_id');
+
+        $this->workshopId = $workshopIdFromQuery ? (int) $workshopIdFromQuery
+            : ($workshopIdFromBody ? (int) $workshopIdFromBody : null);
 
         if ($this->workshopId) {
             $this->currentWorkshop = RemontBrigade::find($this->workshopId);
@@ -126,8 +131,8 @@ class RemontBrigadesScreen extends Screen
             return $this->brigadesLayout();
         }
 
-        // Иначе показываем цехи
-        return $this->workshopsLayout();
+        // Иначе показываем цехи, но также включаем модальные окна бригад для async запросов
+        return array_merge($this->workshopsLayout(), $this->brigadesModals());
     }
 
     /**
@@ -195,13 +200,33 @@ class RemontBrigadesScreen extends Screen
             Layout::table('brigades', [
                 TD::make('name', 'Название бригады'),
 
+                TD::make('latitude', 'Широта')
+                    ->render(function (RemontBrigade $brigade) {
+                        return $brigade->latitude ?? '-';
+                    }),
+
+                TD::make('longitude', 'Долгота')
+                    ->render(function (RemontBrigade $brigade) {
+                        return $brigade->longitude ?? '-';
+                    }),
+
+                TD::make('location_updated_at', 'Координаты обновлены')
+                    ->render(function (RemontBrigade $brigade) {
+                        return $brigade->location_updated_at
+                            ? $brigade->location_updated_at->format('d.m.Y H:i')
+                            : '-';
+                    }),
+
                 TD::make('', 'Данные')
                     ->render(function (RemontBrigade $brigade) {
                         $dataCount = $brigade->data->count();
                         return ModalToggle::make("Данные ({$dataCount})")
                             ->modal('brigadeDataModal')
                             ->method('saveBrigadeData')
-                            ->asyncParameters(['brigade' => $brigade->id])
+                            ->asyncParameters([
+                                'brigade' => $brigade->id,
+                                'workshop_id' => $brigade->parent_id,
+                            ])
                             ->icon('chart');
                     }),
 
@@ -212,7 +237,10 @@ class RemontBrigadesScreen extends Screen
                             ->modal('editBrigadeModal')
                             ->method('updateBrigade')
                             ->icon('pencil')
-                            ->asyncParameters(['brigade' => $brigade->id]);
+                            ->asyncParameters([
+                                'brigade' => $brigade->id,
+                                'workshop_id' => $brigade->parent_id,
+                            ]);
                     }),
             ]),
 
@@ -223,6 +251,18 @@ class RemontBrigadesScreen extends Screen
                         ->title('Название бригады')
                         ->required()
                         ->placeholder('Бригада №1'),
+
+                    Input::make('latitude')
+                        ->title('Широта')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('43.23812345'),
+
+                    Input::make('longitude')
+                        ->title('Долгота')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('76.94523456'),
                 ]),
             ])
                 ->title('Добавить новую бригаду')
@@ -236,6 +276,18 @@ class RemontBrigadesScreen extends Screen
                     Input::make('brigade.name')
                         ->title('Название бригады')
                         ->required(),
+
+                    Input::make('brigade.latitude')
+                        ->title('Широта')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('43.23812345'),
+
+                    Input::make('brigade.longitude')
+                        ->title('Долгота')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('76.94523456'),
                 ]),
             ])
                 ->title('Редактировать бригаду')
@@ -286,6 +338,67 @@ class RemontBrigadesScreen extends Screen
     }
 
     /**
+     * Модальные окна для бригад (для async запросов когда workshop_id не определён)
+     */
+    protected function brigadesModals(): array
+    {
+        return [
+            // Модальное окно для редактирования бригады
+            Layout::modal('editBrigadeModal', [
+                Layout::rows([
+                    Input::make('brigade.id')->type('hidden'),
+                    Input::make('brigade.name')
+                        ->title('Название бригады')
+                        ->required(),
+
+                    Input::make('brigade.latitude')
+                        ->title('Широта')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('43.23812345'),
+
+                    Input::make('brigade.longitude')
+                        ->title('Долгота')
+                        ->type('number')
+                        ->step('0.00000001')
+                        ->placeholder('76.94523456'),
+                ]),
+            ])
+                ->title('Редактировать бригаду')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена')
+                ->async('asyncGetBrigade'),
+
+            // Модальное окно для просмотра/добавления данных бригады
+            Layout::modal('brigadeDataModal', [
+                Layout::rows([
+                    Input::make('brigade_id')->type('hidden'),
+
+                    Input::make('month_year')
+                        ->title('Месяц и год')
+                        ->type('month')
+                        ->help('Формат: YYYY-MM')
+                        ->required(),
+
+                    Input::make('plan')
+                        ->title('План')
+                        ->type('number')
+                        ->required(),
+
+                    Input::make('fact')
+                        ->title('Факт')
+                        ->type('number')
+                        ->required(),
+                ]),
+            ])
+                ->title('Добавить данные')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена')
+                ->async('asyncGetBrigadeData'),
+        ];
+    }
+
+    /**
      * Асинхронно получить данные цеха для редактирования
      */
     public function asyncGetWorkshop(RemontBrigade $workshop): array
@@ -298,8 +411,14 @@ class RemontBrigadesScreen extends Screen
     /**
      * Асинхронно получить данные бригады для редактирования
      */
-    public function asyncGetBrigade(RemontBrigade $brigade): array
+    public function asyncGetBrigade(?RemontBrigade $brigade = null): array
     {
+        // Если модель не была автоматически связана, получаем ID из request
+        if ($brigade === null) {
+            $brigadeId = request()->get('brigade');
+            $brigade = RemontBrigade::findOrFail($brigadeId);
+        }
+
         return [
             'brigade' => $brigade,
         ];
@@ -308,8 +427,14 @@ class RemontBrigadesScreen extends Screen
     /**
      * Асинхронно получить данные бригады
      */
-    public function asyncGetBrigadeData(RemontBrigade $brigade): array
+    public function asyncGetBrigadeData(?RemontBrigade $brigade = null): array
     {
+        // Если модель не была автоматически связана, получаем ID из request
+        if ($brigade === null) {
+            $brigadeId = request()->get('brigade');
+            $brigade = RemontBrigade::findOrFail($brigadeId);
+        }
+
         return [
             'brigade_id' => $brigade->id,
             'brigade_data' => $brigade->data()->orderBy('month_year', 'desc')->get(),
@@ -359,12 +484,25 @@ class RemontBrigadesScreen extends Screen
         $request->validate([
             'name' => 'required|string|max:255',
             'workshop_id' => 'required|exists:remont_brigades,id',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
         ]);
 
-        RemontBrigade::create([
+        $data = [
             'name' => $request->input('name'),
             'parent_id' => $request->input('workshop_id'),
-        ]);
+        ];
+
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+
+        if ($latitude !== null || $longitude !== null) {
+            $data['latitude'] = $latitude;
+            $data['longitude'] = $longitude;
+            $data['location_updated_at'] = now();
+        }
+
+        RemontBrigade::create($data);
 
         Toast::info('Бригада успешно создана');
     }
@@ -377,12 +515,27 @@ class RemontBrigadesScreen extends Screen
         $request->validate([
             'brigade.id' => 'required|exists:remont_brigades,id',
             'brigade.name' => 'required|string|max:255',
+            'brigade.latitude' => 'nullable|numeric',
+            'brigade.longitude' => 'nullable|numeric',
         ]);
 
         $brigade = RemontBrigade::findOrFail($request->input('brigade.id'));
-        $brigade->update([
+
+        $newLatitude = $request->input('brigade.latitude');
+        $newLongitude = $request->input('brigade.longitude');
+
+        $data = [
             'name' => $request->input('brigade.name'),
-        ]);
+            'latitude' => $newLatitude,
+            'longitude' => $newLongitude,
+        ];
+
+        // Обновляем дату изменения координат, если координаты изменились
+        if ($brigade->latitude != $newLatitude || $brigade->longitude != $newLongitude) {
+            $data['location_updated_at'] = now();
+        }
+
+        $brigade->update($data);
 
         Toast::info('Бригада успешно обновлена');
     }
