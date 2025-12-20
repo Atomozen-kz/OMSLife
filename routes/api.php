@@ -25,6 +25,7 @@ use App\Http\Controllers\mobile\SurveyController;
 use App\Http\Controllers\mobile\SurveyResponseController;
 use App\Http\Controllers\mobile\TrainingRecordController;
 use App\Http\Controllers\mobile\FinancialAssistanceApiController;
+use App\Http\Controllers\mobile\ContactController;
 use App\Http\Controllers\PayrollSlipController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,8 @@ Route::post('/getOneNewsPublic', [NewsApiController::class, 'getOneNewsPublic'])
 
 Route::middleware('auth:custom')->group(function () {
     Route::post('/services-vars', [ServicesVarController::class, 'index']);
+
+    Route::post('/contacts', [ContactController::class, 'getContacts']);
 
     Route::post('/updatePhotoProfile', [SotrudnikiController::class, 'updatePhotoProfile']);
     Route::get('/getSotrudnikDetails', [SotrudnikiController::class, 'getSotrudnikDetails']);

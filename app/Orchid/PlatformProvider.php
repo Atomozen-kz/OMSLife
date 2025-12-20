@@ -57,7 +57,12 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Сотрудники')
                 ->icon('bs.people')
                 ->route('platform.sotrudniki')
-                ->permission('platform.sotrudniki')
+                ->permission('platform.sotrudniki'),
+
+            Menu::make('Контакты АУП')
+                ->icon('bs.person-rolodex')
+                ->route('platform.contacts')
+                ->permission('platform.contacts')
                 ->divider(),
 
 //            Menu::make('Категорий новостей')
@@ -296,7 +301,8 @@ class PlatformProvider extends OrchidServiceProvider
             ItemPermission::group('Структура организации')
             ->addPermission('platform.organization.structure', 'Структура')
             ->addPermission('platform.positions', 'Должности')
-            ->addPermission('platform.sotrudniki', 'Сотрудники'),
+            ->addPermission('platform.sotrudniki', 'Сотрудники')
+            ->addPermission('platform.contacts', 'Контакты АУП'),
 
             ItemPermission::group('Департамент по связям с общественностью')
                 ->addPermission('platform.news', 'Новости')

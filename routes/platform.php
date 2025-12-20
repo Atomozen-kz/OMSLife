@@ -60,6 +60,7 @@ use App\Orchid\Screens\User\UserListScreen;
 use App\Orchid\Screens\User\UserProfileScreen;
 use App\Orchid\Screens\StatisticsScreen;
 use App\Orchid\Screens\StatisticsMonthDetailScreen;
+use App\Orchid\Screens\ContactScreen;
 use Illuminate\Support\Facades\Route;
 use Tabuna\Breadcrumbs\Trail;
 
@@ -86,6 +87,8 @@ Route::screen('sotrudnik/{sotrudnik}', OneSotrudnikScreen::class)
 
 Route::screen('positions', PositionScreen::class)->name('platform.positions');
 Route::screen('positions/createOrUpdatePosition', PositionScreen::class)->name('platform.createOrUpdatePosition');
+
+Route::screen('contacts', ContactScreen::class)->name('platform.contacts');
 
 Route::screen('news-category', NewsCategoryScreen::class)->name('platform.news-сategory');
 
