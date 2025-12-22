@@ -91,7 +91,7 @@ class PayrollSlipController extends Controller
                         $sanitizedName = preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', $rawName);
                         $sanitizedMonth = preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['month'] ?? 'Не найдено'));
                         $fileName = 'payroll_slips/' . 'Жировка ' . $sanitizedName . '/' .
-                            $sanitizedName . '_' . $sanitizedMonth . '_' . time() . '_' . rand(1111, 9999) . '.pdf';
+                             $sanitizedMonth . '_' . time() . '_' . rand(1111, 9999) . '.pdf';
 
                     try {
                         Storage::put($fileName, $pdfContent);
