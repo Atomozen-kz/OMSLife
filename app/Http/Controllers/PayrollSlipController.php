@@ -84,10 +84,14 @@ class PayrollSlipController extends Controller
                     $pdfContent = base64_decode($data['pdf']);
 
                     // Генерация уникального имени файла
-                    $fileName = 'payroll_slips/' . 'Жировка ' .
-                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['full_name'] ?? ' - ') ?? ' - ') . '/' .
-                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['full_name'] ?? ' - ') ?? ' - ').'_'.
-                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['month'] ?? 'Не найдено') . '_' . time() .'_'.rand(1111, 9999)) . '.pdf';
+                  $rawName = trim($data['full_name'] ?? $sotrudnik->full_name ?? ' - ');
+                        if ($rawName === '') {
+                            $rawName = ' - ';
+                        }
+                        $sanitizedName = preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', $rawName);
+                        $sanitizedMonth = preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['month'] ?? 'Не найдено'));
+                        $fileName = 'payroll_slips/' . 'Жировка ' . $sanitizedName . '/' .
+                            $sanitizedName . '_' . $sanitizedMonth . '_' . time() . '_' . rand(1111, 9999) . '.pdf';
 
                     try {
                         Storage::put($fileName, $pdfContent);
