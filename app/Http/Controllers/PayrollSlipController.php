@@ -86,6 +86,7 @@ class PayrollSlipController extends Controller
                     // Генерация уникального имени файла
                     $fileName = 'payroll_slips/' . 'Жировка ' .
                         preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['full_name'] ?? ' - ') ?? ' - ') . '/' .
+                        preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['full_name'] ?? ' - ') ?? ' - ').'_'.
                         preg_replace('/[^a-zA-Zа-яА-Я0-9_\-]/u', '_', ($data['month'] ?? 'Не найдено') . '_' . time() .'_'.rand(1111, 9999)) . '.pdf';
 
                     try {
