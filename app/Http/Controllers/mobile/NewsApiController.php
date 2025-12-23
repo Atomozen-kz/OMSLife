@@ -26,7 +26,8 @@ class NewsApiController extends Controller
 
     public function getMainNews(GetMainNewsRequest $request): JsonResponse
     {
-        $news = $this->newsService->getMainNews($request->input('lang'));
+//        $news = $this->newsService->getMainNews($request->input('lang'));
+        $news = $this->newsService->getMainNews('kz');
 
         return response()->json([
             'success' => true,
@@ -38,7 +39,8 @@ class NewsApiController extends Controller
     {
         $page = $request->input('page', 1);
         $per_page = $request->input('per_page', 15);
-        $news = $this->newsService->getAllNews($request->input('lang'), $page, $per_page);
+//        $news = $this->newsService->getAllNews($request->input('lang'), $page, $per_page);
+        $news = $this->newsService->getAllNews('kz', $page, $per_page);
 
         return response()->json([
             'success' => true,

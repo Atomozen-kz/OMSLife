@@ -60,7 +60,7 @@ class LoyaltyCardController extends Controller
     public function categories(GetLoyaltyCardsCategoriesRequest $request): JsonResponse
     {
         $lang = $request->input('lang');
-        if (!in_array($lang, ['ru', 'kz'])) {
+        if (!in_array($lang, ['ru', 'kz', 'kk'])) {
             $lang = 'ru';
         }
         $langColumn = 'name_' . $lang;
