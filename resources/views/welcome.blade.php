@@ -84,8 +84,8 @@
         <a href="https://play.google.com/store/apps/details?id=kz.atomozen.omslife&hl=ru" target="_blank">
             <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" alt="Google Play">
         </a>
-<a href="https://apps.apple.com" target="_blank" aria-label="App Store">
-            <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store" style="filter: grayscale(100%) saturate(0) opacity(0.5);">
+<a href="https://apps.apple.com/app/oms-life/id6756550427" target="_blank" aria-label="App Store">
+            <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="App Store">
         </a>
 {{--        <a href="https://appgallery.cloud.huawei.com" target="_blank">--}}
 {{--            <img src="/storage/appgallery.png" alt="AppGallery">--}}
