@@ -63,6 +63,10 @@ class LoyaltyCardController extends Controller
         if (!in_array($lang, ['ru', 'kz', 'kk'])) {
             $lang = 'ru';
         }
+        if ($lang === 'kz') {
+            $lang = 'kk';
+        }
+
         $langColumn = 'name_' . $lang;
         $categoriesList = LoyaltyCardsCategory::where('status',1)->select('id', $langColumn,'image_path','color_rgb')->get()->map(function ($category) {
             $category->url = url($category->image_path);
