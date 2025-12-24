@@ -22,7 +22,7 @@ class GetLoyaltyCardsCategoriesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'lang' => 'required|string|in:ru,kk',
+            'lang' => 'required|string',
         ];
     }
 
