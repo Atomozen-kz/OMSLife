@@ -5,6 +5,7 @@ namespace App\Orchid\Screens;
 use App\Models\RemontBrigade;
 use App\Models\RemontBrigadeData;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Actions\ModalToggle;
@@ -60,9 +61,25 @@ class RemontBrigadesScreen extends Screen
             ->with('data')
             ->get();
 
+        // Агрегация данных по месяцам для таблицы статистики
+        $monthlyStats = RemontBrigadeData::select(
+                'month_year',
+                DB::raw('SUM(plan) as total_plan'),
+                DB::raw('SUM(fact) as total_fact')
+            )
+            ->groupBy('month_year')
+            ->orderBy('month_year', 'desc')
+            ->get()
+            ->map(function ($item) {
+                $item->deviation = $item->total_fact - $item->total_plan;
+                $item->month_name_ru = RemontBrigadeData::formatMonthYearRu($item->month_year);
+                return $item;
+            });
+
         return [
             'workshops' => $workshops,
             'workshopId' => null,
+            'monthlyStats' => $monthlyStats,
         ];
     }
 
@@ -131,8 +148,12 @@ class RemontBrigadesScreen extends Screen
             return $this->brigadesLayout();
         }
 
-        // Иначе показываем цехи, но также включаем модальные окна бригад для async запросов
-        return array_merge($this->workshopsLayout(), $this->brigadesModals());
+        // Иначе показываем цехи + таблицу месяцев + модальные окна бригад для async запросов
+        return array_merge(
+            $this->workshopsLayout(),
+            $this->monthsTableLayout(),
+            $this->brigadesModals()
+        );
     }
 
     /**
@@ -188,6 +209,41 @@ class RemontBrigadesScreen extends Screen
                 ->applyButton('Сохранить')
                 ->closeButton('Отмена')
                 ->async('asyncGetWorkshop'),
+        ];
+    }
+
+    /**
+     * Layout для таблицы статистики по месяцам
+     */
+    protected function monthsTableLayout(): array
+    {
+        return [
+            Layout::rows([
+                \Orchid\Screen\Fields\Label::make('')
+                    ->title('Статистика по месяцам'),
+            ]),
+
+            Layout::table('monthlyStats', [
+                TD::make('month_name_ru', 'Месяц')
+                    ->render(function ($item) {
+                        return Link::make($item->month_name_ru)
+                            ->route('platform.remont-brigades.month', ['month' => $item->month_year]);
+                    }),
+
+                TD::make('total_plan', 'План')
+                    ->alignCenter(),
+
+                TD::make('total_fact', 'Факт')
+                    ->alignCenter(),
+
+                TD::make('deviation', 'Отклонение')
+                    ->alignCenter()
+                    ->render(function ($item) {
+                        $color = $item->deviation >= 0 ? '#28a745' : '#dc3545';
+                        $prefix = $item->deviation >= 0 ? '+' : '';
+                        return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$item->deviation}</span>";
+                    }),
+            ]),
         ];
     }
 

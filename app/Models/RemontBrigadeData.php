@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Orchid\Screen\AsSource;
 
 class RemontBrigadeData extends Model
 {
+    use AsSource;
     protected $table = 'remont_brigades_data';
 
     protected $fillable = ['brigade_id', 'month_year', 'plan', 'fact'];
@@ -67,6 +69,47 @@ class RemontBrigadeData extends Model
             11 => 'Қараша',
             12 => 'Желтоқсан',
         ];
+    }
+
+    /**
+     * Названия месяцев на русском
+     */
+    public static function getRussianMonthNames(): array
+    {
+        return [
+            1 => 'Январь',
+            2 => 'Февраль',
+            3 => 'Март',
+            4 => 'Апрель',
+            5 => 'Май',
+            6 => 'Июнь',
+            7 => 'Июль',
+            8 => 'Август',
+            9 => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+    }
+
+    /**
+     * Получить русское название месяца с годом (например "Декабрь 2025")
+     */
+    public function getMonthNameRuAttribute(): string
+    {
+        $months = self::getRussianMonthNames();
+        return ($months[$this->month] ?? '') . ' ' . $this->year;
+    }
+
+    /**
+     * Форматировать month_year в русское название (статический метод)
+     */
+    public static function formatMonthYearRu(string $monthYear): string
+    {
+        $year = (int) substr($monthYear, 0, 4);
+        $month = (int) substr($monthYear, 5, 2);
+        $months = self::getRussianMonthNames();
+        return ($months[$month] ?? '') . ' ' . $year;
     }
 
     /**
