@@ -13,10 +13,11 @@ class RemontBrigadesPlan extends Model
 
     protected $table = 'remont_brigades_plan';
 
-    protected $fillable = ['brigade_id', 'month', 'plan'];
+    protected $fillable = ['brigade_id', 'month', 'plan', 'unv_plan'];
 
     protected $casts = [
         'plan' => 'integer',
+        'unv_plan' => 'integer',
     ];
 
     /**
@@ -87,5 +88,45 @@ class RemontBrigadesPlan extends Model
     {
         $names = self::getMonthNames();
         return $names[$this->month_number] ?? '';
+    }
+
+    /**
+     * Форматирует год и месяц в строку "YYYY-MM"
+     */
+    public static function formatMonthYear(int $year, int $month): string
+    {
+        return sprintf('%04d-%02d', $year, $month);
+    }
+
+    /**
+     * Названия месяцев на русском
+     */
+    public static function getRussianMonthNames(): array
+    {
+        return [
+            1 => 'Январь',
+            2 => 'Февраль',
+            3 => 'Март',
+            4 => 'Апрель',
+            5 => 'Май',
+            6 => 'Июнь',
+            7 => 'Июль',
+            8 => 'Август',
+            9 => 'Сентябрь',
+            10 => 'Октябрь',
+            11 => 'Ноябрь',
+            12 => 'Декабрь',
+        ];
+    }
+
+    /**
+     * Форматировать month в русское название (статический метод)
+     */
+    public static function formatMonthYearRu(string $monthYear): string
+    {
+        $year = (int) substr($monthYear, 0, 4);
+        $month = (int) substr($monthYear, 5, 2);
+        $months = self::getRussianMonthNames();
+        return ($months[$month] ?? '') . ' ' . $year;
     }
 }

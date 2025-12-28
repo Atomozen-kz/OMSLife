@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\RemontBrigade;
 use App\Models\RemontBrigadeData;
+use App\Models\RemontBrigadesPlan;
+use App\Models\RemontBrigadeFullData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -118,6 +120,232 @@ class RemontBrigadeController extends Controller
                 'total' => [
                     'name' => 'Всего',
                     'monthly_data' => array_values($totalData),
+                ],
+                'workshops' => $workshopsData,
+            ],
+        ]);
+    }
+
+    /**
+     * Получить данные по ремонту скважин (V2 - использует RemontBrigadesPlan и RemontBrigadeFullData)
+     *
+     * Структура ответа:
+     * - Первый уровень: общие суммированные данные
+     * - Второй уровень: данные по цехам (суммированные)
+     * - Третий уровень: данные по бригадам
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function indexV2(Request $request): JsonResponse
+    {
+        $year = $request->get('year', 2025);
+
+        // Получаем все цехи с бригадами и их планами с полными данными
+        $workshops = RemontBrigade::workshops()
+            ->with(['children.plans' => function ($query) use ($year) {
+                $query->where('month', 'like', $year . '-%')
+                    ->orderBy('month')
+                    ->with('fullData:id,plan_id,unv_hours');
+            }])
+            ->get();
+
+        // Собираем все месяцы за год
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[] = RemontBrigadesPlan::formatMonthYear($year, $m);
+        }
+
+        // Структура для общих данных (храним сырую сумму и количество для среднего)
+        $totalData = [];
+        $totalUnvHoursRaw = [];
+        $totalUnvHoursCount = [];
+        $totalUnvPlanRaw = [];
+        $totalUnvPlanCount = [];
+        foreach ($months as $monthYear) {
+            $totalData[$monthYear] = [
+                'month_year' => $monthYear,
+                'plan' => 0,
+                'fact' => 0,
+                'unv_plan' => 0,
+                'unv_hours' => 0,
+            ];
+            $totalUnvHoursRaw[$monthYear] = 0;
+            $totalUnvHoursCount[$monthYear] = 0;
+            $totalUnvPlanRaw[$monthYear] = 0;
+            $totalUnvPlanCount[$monthYear] = 0;
+        }
+
+        // Формируем данные по цехам
+        $workshopsData = [];
+        $workshopsSummary = []; // Данные по цехам за весь год
+
+        foreach ($workshops as $workshop) {
+            $workshopMonthlyData = [];
+            $workshopUnvHoursRaw = [];
+            $workshopUnvHoursCount = [];
+            $workshopUnvPlanRaw = [];
+            $workshopUnvPlanCount = [];
+
+            // Годовые суммы для цеха
+            $workshopYearPlan = 0;
+            $workshopYearFact = 0;
+            $workshopYearUnvHoursRaw = 0;
+            $workshopYearUnvHoursCount = 0;
+            $workshopYearUnvPlanRaw = 0;
+            $workshopYearUnvPlanCount = 0;
+
+            foreach ($months as $monthYear) {
+                $workshopMonthlyData[$monthYear] = [
+                    'month_year' => $monthYear,
+                    'plan' => 0,
+                    'fact' => 0,
+                    'unv_plan' => 0,
+                    'unv_hours' => 0,
+                ];
+                $workshopUnvHoursRaw[$monthYear] = 0;
+                $workshopUnvHoursCount[$monthYear] = 0;
+                $workshopUnvPlanRaw[$monthYear] = 0;
+                $workshopUnvPlanCount[$monthYear] = 0;
+            }
+
+            // Формируем данные по бригадам
+            $brigadesData = [];
+
+            foreach ($workshop->children as $brigade) {
+                $brigadeMonthlyData = [];
+                $brigadeUnvHoursRaw = [];
+                $brigadeUnvHoursCount = [];
+
+                foreach ($months as $monthYear) {
+                    $brigadeMonthlyData[$monthYear] = [
+                        'month_year' => $monthYear,
+                        'plan' => 0,
+                        'fact' => 0,
+                        'unv_plan' => 0,
+                        'unv_hours' => 0,
+                    ];
+                    $brigadeUnvHoursRaw[$monthYear] = 0;
+                    $brigadeUnvHoursCount[$monthYear] = 0;
+                }
+
+                // Заполняем данные бригады из plans
+                foreach ($brigade->plans as $planData) {
+                    if (isset($brigadeMonthlyData[$planData->month])) {
+                        $fact = $planData->fullData->count();
+                        $unvHoursSum = $planData->fullData->sum('unv_hours') ?? 0;
+                        $unvPlan = $planData->unv_plan ?? 0;
+
+                        $brigadeMonthlyData[$planData->month]['plan'] = $planData->plan;
+                        $brigadeMonthlyData[$planData->month]['fact'] = $fact;
+                        $brigadeMonthlyData[$planData->month]['unv_plan'] = $unvPlan;
+                        $brigadeUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $brigadeUnvHoursCount[$planData->month] += $fact;
+
+                        // Суммируем к цеху (по месяцам)
+                        $workshopMonthlyData[$planData->month]['plan'] += $planData->plan;
+                        $workshopMonthlyData[$planData->month]['fact'] += $fact;
+                        $workshopUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $workshopUnvHoursCount[$planData->month] += $fact;
+                        $workshopUnvPlanRaw[$planData->month] += $unvPlan;
+                        if ($unvPlan > 0) {
+                            $workshopUnvPlanCount[$planData->month]++;
+                        }
+
+                        // Суммируем к цеху (годовые)
+                        $workshopYearPlan += $planData->plan;
+                        $workshopYearFact += $fact;
+                        $workshopYearUnvHoursRaw += $unvHoursSum;
+                        $workshopYearUnvHoursCount += $fact;
+                        $workshopYearUnvPlanRaw += $unvPlan;
+                        if ($unvPlan > 0) {
+                            $workshopYearUnvPlanCount++;
+                        }
+
+                        // Суммируем к общим данным
+                        $totalData[$planData->month]['plan'] += $planData->plan;
+                        $totalData[$planData->month]['fact'] += $fact;
+                        $totalUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $totalUnvHoursCount[$planData->month] += $fact;
+                        $totalUnvPlanRaw[$planData->month] += $unvPlan;
+                        if ($unvPlan > 0) {
+                            $totalUnvPlanCount[$planData->month]++;
+                        }
+                    }
+                }
+
+                // Вычисляем среднее unv_hours для бригады
+                foreach ($months as $monthYear) {
+                    $count = $brigadeUnvHoursCount[$monthYear];
+                    $brigadeMonthlyData[$monthYear]['unv_hours'] = $count > 0
+                        ? (int) round($brigadeUnvHoursRaw[$monthYear] / $count)
+                        : 0;
+                }
+
+                $brigadesData[] = [
+                    'id' => $brigade->id,
+                    'name' => $brigade->name,
+                    'monthly_data' => array_values($brigadeMonthlyData),
+                ];
+            }
+
+            // Вычисляем среднее unv_hours и среднее unv_plan для цеха
+            foreach ($months as $monthYear) {
+                $countHours = $workshopUnvHoursCount[$monthYear];
+                $workshopMonthlyData[$monthYear]['unv_hours'] = $countHours > 0
+                    ? (int) round($workshopUnvHoursRaw[$monthYear] / $countHours)
+                    : 0;
+
+                $countPlan = $workshopUnvPlanCount[$monthYear];
+                $workshopMonthlyData[$monthYear]['unv_plan'] = $countPlan > 0
+                    ? (int) round($workshopUnvPlanRaw[$monthYear] / $countPlan)
+                    : 0;
+            }
+
+            $workshopsData[] = [
+                'id' => $workshop->id,
+                'name' => $workshop->name,
+                'monthly_data' => array_values($workshopMonthlyData),
+                'brigades' => $brigadesData,
+            ];
+
+            // Добавляем годовую сводку по цеху
+            $workshopsSummary[] = [
+                'id' => $workshop->id,
+                'name' => $workshop->name,
+                'plan' => $workshopYearPlan,
+                'fact' => $workshopYearFact,
+                'unv_plan' => $workshopYearUnvPlanCount > 0
+                    ? (int) round($workshopYearUnvPlanRaw / $workshopYearUnvPlanCount)
+                    : 0,
+                'unv_hours' => $workshopYearUnvHoursCount > 0
+                    ? (int) round($workshopYearUnvHoursRaw / $workshopYearUnvHoursCount)
+                    : 0,
+            ];
+        }
+
+        // Вычисляем среднее unv_hours и среднее unv_plan для общих данных
+        foreach ($months as $monthYear) {
+            $countHours = $totalUnvHoursCount[$monthYear];
+            $totalData[$monthYear]['unv_hours'] = $countHours > 0
+                ? (int) round($totalUnvHoursRaw[$monthYear] / $countHours)
+                : 0;
+
+            $countPlan = $totalUnvPlanCount[$monthYear];
+            $totalData[$monthYear]['unv_plan'] = $countPlan > 0
+                ? (int) round($totalUnvPlanRaw[$monthYear] / $countPlan)
+                : 0;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'year' => (int) $year,
+                'months' => RemontBrigadesPlan::getMonthNames(),
+                'total' => [
+                    'name' => 'Всего',
+                    'monthly_data' => array_values($totalData),
+                    'workshops_summary' => $workshopsSummary,
                 ],
                 'workshops' => $workshopsData,
             ],
