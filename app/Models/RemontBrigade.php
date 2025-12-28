@@ -44,6 +44,14 @@ class RemontBrigade extends Model
     }
 
     /**
+     * Планы ремонта по месяцам
+     */
+    public function plans(): HasMany
+    {
+        return $this->hasMany(RemontBrigadesPlan::class, 'brigade_id');
+    }
+
+    /**
      * Проверяет, является ли запись цехом
      */
     public function isWorkshop(): bool
