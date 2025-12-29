@@ -52,7 +52,7 @@ class TrainingCenterScreen extends Screen
 
         // Получаем статистику с заполненными данными
         $statistics = TrainingRecord::query()
-            ->whereYear('completion_date', $lastYear)
+//            ->whereYear('completion_date', $lastYear)
             ->selectRaw('id_training_type, COUNT(*) as total')
             ->groupBy('id_training_type')
             ->with('trainingType:id,name_ru,name_kz')
@@ -73,8 +73,7 @@ class TrainingCenterScreen extends Screen
             ->whereRaw('id = (SELECT MIN(id) FROM training_records as tr
                  WHERE tr.validity_date = training_records.validity_date
                  AND tr.completion_date = training_records.completion_date
-                 AND tr.certificate_number = training_records.certificate_number
-                 AND tr.protocol_number = training_records.protocol_number
+
                  AND tr.id_sotrudnik = training_records.id_sotrudnik
                  AND tr.id_training_type = training_records.id_training_type)')
             ->filters()
