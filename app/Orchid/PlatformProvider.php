@@ -160,7 +160,12 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.person-vcard')
                 ->title('Корпоративный учебный центр')
                 ->route('platform.training-center')
-                ->permission('platform.training-center')
+                ->permission('platform.training-center'),
+
+            Menu::make('Памятки по тех. безопасности')
+                ->icon('bs.shield-exclamation')
+                ->route('platform.safety-memos')
+                ->permission('platform.safety-memos')
                 ->divider(),
 
             Menu::make('Добыча нефти')
@@ -332,7 +337,8 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('platform.promzona-geo-objects', 'Карта промзоны (new)'),
 
             ItemPermission::group('Корпоративный учебный центр')
-                ->addPermission('platform.training-center', 'Корпоративный учебный центр'),
+                ->addPermission('platform.training-center', 'Корпоративный учебный центр')
+                ->addPermission('platform.safety-memos', 'Памятки по тех. безопасности'),
 
             ItemPermission::group('КУЦ админ')
                 ->addPermission('platform.training-center-admin', 'КУЦ админ'),

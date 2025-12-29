@@ -274,3 +274,6 @@ Route::screen('/remont-brigades/{month}', \App\Orchid\Screens\RemontBrigadesMont
 // Посещаемые места (партнёры)
 Route::screen('/partner-places', \App\Orchid\Screens\PartnerPlaceScreen::class)->name('platform.partner-places');
 
+// Памятки по тех. безопасности
+Route::screen('/safety-memos', \App\Orchid\Screens\SafetyMemoScreen::class)->name('platform.safety-memos');
+
