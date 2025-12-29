@@ -7,6 +7,7 @@ use App\Models\RemontBrigade;
 use App\Models\RemontBrigadeData;
 use App\Models\RemontBrigadesPlan;
 use App\Models\RemontBrigadeFullData;
+use App\Models\RemontBrigadesDowntime;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -141,12 +142,12 @@ class RemontBrigadeController extends Controller
     {
         $year = $request->get('year', 2025);
 
-        // Получаем все цехи с бригадами и их планами с полными данными
+        // Получаем все цехи с бригадами и их планами с полными данными и простоями
         $workshops = RemontBrigade::workshops()
             ->with(['children.plans' => function ($query) use ($year) {
                 $query->where('month', 'like', $year . '-%')
                     ->orderBy('month')
-                    ->with('fullData:id,plan_id,unv_hours');
+                    ->with(['fullData:id,plan_id,unv_hours', 'downtimes:id,plan_id,reason,hours']);
             }])
             ->get();
 
@@ -162,6 +163,7 @@ class RemontBrigadeController extends Controller
         $totalUnvHoursCount = [];
         $totalUnvPlanRaw = [];
         $totalUnvPlanCount = [];
+        $totalDowntime = [];
         foreach ($months as $monthYear) {
             $totalData[$monthYear] = [
                 'month_year' => $monthYear,
@@ -169,11 +171,13 @@ class RemontBrigadeController extends Controller
                 'fact' => 0,
                 'unv_plan' => 0,
                 'unv_hours' => 0,
+                'downtime' => 0,
             ];
             $totalUnvHoursRaw[$monthYear] = 0;
             $totalUnvHoursCount[$monthYear] = 0;
             $totalUnvPlanRaw[$monthYear] = 0;
             $totalUnvPlanCount[$monthYear] = 0;
+            $totalDowntime[$monthYear] = 0;
         }
 
         // Формируем данные по цехам
@@ -186,6 +190,7 @@ class RemontBrigadeController extends Controller
             $workshopUnvHoursCount = [];
             $workshopUnvPlanRaw = [];
             $workshopUnvPlanCount = [];
+            $workshopDowntime = [];
 
             // Годовые суммы для цеха
             $workshopYearPlan = 0;
@@ -194,6 +199,7 @@ class RemontBrigadeController extends Controller
             $workshopYearUnvHoursCount = 0;
             $workshopYearUnvPlanRaw = 0;
             $workshopYearUnvPlanCount = 0;
+            $workshopYearDowntime = 0;
 
             foreach ($months as $monthYear) {
                 $workshopMonthlyData[$monthYear] = [
@@ -202,11 +208,13 @@ class RemontBrigadeController extends Controller
                     'fact' => 0,
                     'unv_plan' => 0,
                     'unv_hours' => 0,
+                    'downtime' => 0,
                 ];
                 $workshopUnvHoursRaw[$monthYear] = 0;
                 $workshopUnvHoursCount[$monthYear] = 0;
                 $workshopUnvPlanRaw[$monthYear] = 0;
                 $workshopUnvPlanCount[$monthYear] = 0;
+                $workshopDowntime[$monthYear] = 0;
             }
 
             // Формируем данные по бригадам
@@ -216,6 +224,7 @@ class RemontBrigadeController extends Controller
                 $brigadeMonthlyData = [];
                 $brigadeUnvHoursRaw = [];
                 $brigadeUnvHoursCount = [];
+                $brigadeDowntime = [];
 
                 foreach ($months as $monthYear) {
                     $brigadeMonthlyData[$monthYear] = [
@@ -224,9 +233,11 @@ class RemontBrigadeController extends Controller
                         'fact' => 0,
                         'unv_plan' => 0,
                         'unv_hours' => 0,
+                        'downtime' => 0,
                     ];
                     $brigadeUnvHoursRaw[$monthYear] = 0;
                     $brigadeUnvHoursCount[$monthYear] = 0;
+                    $brigadeDowntime[$monthYear] = 0;
                 }
 
                 // Заполняем данные бригады из plans
@@ -235,12 +246,14 @@ class RemontBrigadeController extends Controller
                         $fact = $planData->fullData->count();
                         $unvHoursSum = $planData->fullData->sum('unv_hours') ?? 0;
                         $unvPlan = $planData->unv_plan ?? 0;
+                        $downtimeSum = $planData->downtimes->sum('hours') ?? 0;
 
                         $brigadeMonthlyData[$planData->month]['plan'] = $planData->plan;
                         $brigadeMonthlyData[$planData->month]['fact'] = $fact;
                         $brigadeMonthlyData[$planData->month]['unv_plan'] = $unvPlan;
                         $brigadeUnvHoursRaw[$planData->month] += $unvHoursSum;
                         $brigadeUnvHoursCount[$planData->month] += $fact;
+                        $brigadeDowntime[$planData->month] += $downtimeSum;
 
                         // Суммируем к цеху (по месяцам)
                         $workshopMonthlyData[$planData->month]['plan'] += $planData->plan;
@@ -251,6 +264,7 @@ class RemontBrigadeController extends Controller
                         if ($unvPlan > 0) {
                             $workshopUnvPlanCount[$planData->month]++;
                         }
+                        $workshopDowntime[$planData->month] += $downtimeSum;
 
                         // Суммируем к цеху (годовые)
                         $workshopYearPlan += $planData->plan;
@@ -261,6 +275,7 @@ class RemontBrigadeController extends Controller
                         if ($unvPlan > 0) {
                             $workshopYearUnvPlanCount++;
                         }
+                        $workshopYearDowntime += $downtimeSum;
 
                         // Суммируем к общим данным
                         $totalData[$planData->month]['plan'] += $planData->plan;
@@ -271,15 +286,17 @@ class RemontBrigadeController extends Controller
                         if ($unvPlan > 0) {
                             $totalUnvPlanCount[$planData->month]++;
                         }
+                        $totalDowntime[$planData->month] += $downtimeSum;
                     }
                 }
 
-                // Вычисляем среднее unv_hours для бригады
+                // Вычисляем среднее unv_hours для бригады и добавляем downtime
                 foreach ($months as $monthYear) {
                     $count = $brigadeUnvHoursCount[$monthYear];
                     $brigadeMonthlyData[$monthYear]['unv_hours'] = $count > 0
                         ? (int) round($brigadeUnvHoursRaw[$monthYear] / $count)
                         : 0;
+                    $brigadeMonthlyData[$monthYear]['downtime'] = $brigadeDowntime[$monthYear];
                 }
 
                 $brigadesData[] = [
@@ -289,7 +306,7 @@ class RemontBrigadeController extends Controller
                 ];
             }
 
-            // Вычисляем среднее unv_hours и среднее unv_plan для цеха
+            // Вычисляем среднее unv_hours и среднее unv_plan для цеха и добавляем downtime
             foreach ($months as $monthYear) {
                 $countHours = $workshopUnvHoursCount[$monthYear];
                 $workshopMonthlyData[$monthYear]['unv_hours'] = $countHours > 0
@@ -300,6 +317,8 @@ class RemontBrigadeController extends Controller
                 $workshopMonthlyData[$monthYear]['unv_plan'] = $countPlan > 0
                     ? (int) round($workshopUnvPlanRaw[$monthYear] / $countPlan)
                     : 0;
+
+                $workshopMonthlyData[$monthYear]['downtime'] = $workshopDowntime[$monthYear];
             }
 
             $workshopsData[] = [
@@ -321,10 +340,11 @@ class RemontBrigadeController extends Controller
                 'unv_hours' => $workshopYearUnvHoursCount > 0
                     ? (int) round($workshopYearUnvHoursRaw / $workshopYearUnvHoursCount)
                     : 0,
+                'downtime' => $workshopYearDowntime,
             ];
         }
 
-        // Вычисляем среднее unv_hours и среднее unv_plan для общих данных
+        // Вычисляем среднее unv_hours и среднее unv_plan для общих данных и добавляем downtime
         foreach ($months as $monthYear) {
             $countHours = $totalUnvHoursCount[$monthYear];
             $totalData[$monthYear]['unv_hours'] = $countHours > 0
@@ -335,6 +355,8 @@ class RemontBrigadeController extends Controller
             $totalData[$monthYear]['unv_plan'] = $countPlan > 0
                 ? (int) round($totalUnvPlanRaw[$monthYear] / $countPlan)
                 : 0;
+
+            $totalData[$monthYear]['downtime'] = $totalDowntime[$monthYear];
         }
 
         return response()->json([

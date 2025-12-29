@@ -37,6 +37,14 @@ class RemontBrigadesPlan extends Model
     }
 
     /**
+     * Простои бригады для этого плана
+     */
+    public function downtimes(): HasMany
+    {
+        return $this->hasMany(RemontBrigadesDowntime::class, 'plan_id');
+    }
+
+    /**
      * Получить месяц из month (формат: "2025-01")
      */
     public function getMonthNumberAttribute(): int

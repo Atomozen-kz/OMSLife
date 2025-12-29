@@ -52,6 +52,14 @@ class RemontBrigade extends Model
     }
 
     /**
+     * Простои бригады
+     */
+    public function downtimes(): HasMany
+    {
+        return $this->hasMany(RemontBrigadesDowntime::class, 'brigade_id');
+    }
+
+    /**
      * Проверяет, является ли запись цехом
      */
     public function isWorkshop(): bool
