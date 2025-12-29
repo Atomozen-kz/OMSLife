@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Facades\Excel;
+use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Actions\ModalToggle;
 use Orchid\Screen\Fields\Input;
@@ -191,11 +192,31 @@ class TrainingCenterScreen extends Screen
                             return 'просрочено';
                         }
                     }),
+
+                TD::make('actions', 'Действия')
+                    ->align(TD::ALIGN_CENTER)
+                    ->render(function (TrainingRecord $record) {
+                        return \Orchid\Screen\Fields\Group::make([
+                            ModalToggle::make('')
+                                ->modal('addOrUpdateRecordModal')
+                                ->modalTitle('Редактировать запись обучения')
+                                ->method('saveRecord')
+                                ->asyncParameters(['record' => $record->id])
+                                ->icon('pencil'),
+
+                            Button::make('')
+                                ->icon('trash')
+                                ->confirm('Вы уверены, что хотите удалить эту запись?')
+                                ->method('deleteRecord', ['id' => $record->id]),
+                        ])->autoWidth();
+                    }),
             ]),
 
             // Модальное окно для добавления записи
             Layout::modal('addOrUpdateRecordModal', [
                 Layout::rows([
+                    Input::make('record.id')->type('hidden'),
+
                     Select::make('record.id_training_type')
                         ->title('Тип обучения')
                         ->fromModel(TrainingType::class, 'name_ru', 'id')
@@ -214,9 +235,9 @@ class TrainingCenterScreen extends Screen
                     Input::make('record.protocol_number')
                         ->title('Номер протокола'),
 
-                    DateTimer::make('record.completion_date')
+                    Input::make('record.completion_date')
+                        ->type('date')
                         ->title('Дата прохождения')
-                        ->format('Y-m-d')
                         ->required(),
                 ]),
             ])
@@ -324,6 +345,7 @@ class TrainingCenterScreen extends Screen
     public function saveRecord(Request $request)
     {
         $data = $request->validate([
+            'record.id' => 'nullable|integer',
             'record.id_training_type' => 'required|exists:training_types,id',
             'record.id_sotrudnik' => 'required|exists:sotrudniki,id',
             'record.certificate_number' => 'nullable|string',
@@ -333,17 +355,46 @@ class TrainingCenterScreen extends Screen
 
         $completionDate = $data['record']['completion_date'];
         $validityPeriod = TrainingType::find($data['record']['id_training_type'])->validity_period;
+        $recordId = $data['record']['id'] ?? null;
 
-        TrainingRecord::create([
+        $recordData = [
             'id_training_type' => $data['record']['id_training_type'],
             'id_sotrudnik' => $data['record']['id_sotrudnik'],
             'certificate_number' => $data['record']['certificate_number'] ?? null,
             'protocol_number' => $data['record']['protocol_number'] ?? null,
             'completion_date' => $completionDate,
             'validity_date' => now()->parse($completionDate)->addMonths($validityPeriod),
-        ]);
+        ];
 
-        Toast::info('Запись успешно добавлена.');
+        if ($recordId) {
+            $record = TrainingRecord::find($recordId);
+            if ($record) {
+                $record->update($recordData);
+                Toast::info('Запись успешно обновлена.');
+            } else {
+                TrainingRecord::create($recordData);
+                Toast::info('Запись успешно добавлена.');
+            }
+        } else {
+            TrainingRecord::create($recordData);
+            Toast::info('Запись успешно добавлена.');
+        }
+    }
+
+    /**
+     * Delete a training record.
+     */
+    public function deleteRecord(Request $request)
+    {
+        $id = $request->get('id');
+        $record = TrainingRecord::find($id);
+
+        if ($record) {
+            $record->delete();
+            Toast::info('Запись успешно удалена.');
+        } else {
+            Toast::error('Запись не найдена.');
+        }
     }
 
     /**
