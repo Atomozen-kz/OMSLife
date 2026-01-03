@@ -34,10 +34,6 @@ class addOrUpdateSotrudnikModal extends Rows
                     ->required()
                     ->placeholder('Введите полное имя (Фамилия Имя Отчество)'),
 
-//                Input::make('sotrudnik.iin')
-//                    ->title('ИИН')
-//                    ->required()
-//                    ->placeholder('Введите ИИН'),
                 Input::make('sotrudnik.tabel_nomer')
                     ->title('Табель номер')
                     ->placeholder('Введите табель номер')
@@ -48,21 +44,23 @@ class addOrUpdateSotrudnikModal extends Rows
                     ->placeholder('Введите ИИН')
                     ->required(),
 
-//                DateTimer::make('sotrudnik.birthdate')
-//                    ->title('День рождение')
-//                    ->required()
-//                    ->placeholder('Введите день рождение')
+                Input::make('sotrudnik.birthdate')
+                    ->title('День рождение')
+                    ->required()
+                    ->placeholder('Введите день рождение')
 //                    ->allowInput()
-//                    ->format('Y-m-d'),
-//
-//                Input::make('sotrudnik.phone_number')
-//                    ->title('Номер телефона')
-//                    ->mask('+7-(999)-999-99-99')
-//                    ->required()
-//                    ->placeholder('Введите номер телефона'),
+                    ->type('date')
+                    ->format('Y-m-d'),
+
+                Select::make('sotrudnik.gender')
+                    ->title('Пол')
+                    ->options([
+                        'male' => 'Мужской',
+                        'female' => 'Женский',
+                    ]),
 
             Relation::make('sotrudnik.organization_id')
-                ->title('Организации')
+                ->title('Организация')
                 ->fromModel(OrganizationStructure::class, 'name_ru') // Или другое поле для отображения
                 ->addClass('organizations-field') // Уникальный класс
 //                ->applyScope('WithFirstParent')

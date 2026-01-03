@@ -55,10 +55,10 @@ class PositionScreen extends Screen
                 ->modal('createPositionModal')
                 ->method('createOrUpdatePosition')
                 ->icon('plus'),
-            ModalToggle::make('Импорт из Excel перевод на казахский')
-                ->modal('importPositions')
-                ->method('importExcel')
-                ->icon('cloud-upload'),
+//            ModalToggle::make('Импорт из Excel перевод на казахский')
+//                ->modal('importPositions')
+//                ->method('importExcel')
+//                ->icon('cloud-upload'),
 //            ModalToggle::make('Импортировать CSV')
 //                ->modal('importCsvModal')
 //                ->method('importCsv'),
@@ -90,18 +90,18 @@ class PositionScreen extends Screen
                         ->method('createOrUpdatePosition')
                         ->modalTitle('Редактирование должности')
                         ->asyncParameters(['position' => $position->id])
-                        ->icon('note')
+                        ->icon('pencil')
                         ->confirm('Вы уверены, что хотите редактировать эту запись?');
                 }),
 
-            TD::make('')
-                ->render(function (Position $position) {
-                    return Button::make('Удалить')
-                        ->method('deletePosition')
-                        ->parameters(['id' => $position->id])
-                        ->icon('trash')
-                        ->confirm('Вы уверены, что хотите удалить эту должность?');
-                }),
+//            TD::make('')
+//                ->render(function (Position $position) {
+//                    return Button::make('Удалить')
+//                        ->method('deletePosition')
+//                        ->parameters(['id' => $position->id])
+//                        ->icon('trash')
+//                        ->confirm('Вы уверены, что хотите удалить эту должность?');
+//                }),
         ]),
         // Модальное окно для создания и редактирования
         Layout::modal('createPositionModal', [

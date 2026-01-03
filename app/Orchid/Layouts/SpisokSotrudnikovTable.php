@@ -52,6 +52,7 @@ class SpisokSotrudnikovTable extends Table
                         ->asyncParameters([
                             'sotrudnik' => $sotrudnik->id
                         ])
+                        ->class('btn btn-primary')
                         ->icon('pencil');
                 }),
 
@@ -61,6 +62,7 @@ class SpisokSotrudnikovTable extends Table
                 ->render(function (Sotrudniki $sotrudnik) {
                     return Button::make('')
                         ->icon('trash')
+                        ->class('btn btn-danger')
                         ->confirm('Вы уверены, что хотите удалить этого сотрудника?')
                         ->method('remove', ['id' => $sotrudnik->id]);
                 }),

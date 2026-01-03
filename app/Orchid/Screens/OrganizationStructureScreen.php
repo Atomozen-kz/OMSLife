@@ -75,19 +75,16 @@ class OrganizationStructureScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            ModalToggle::make('Импортировать структуру')
-                ->modal('importOrganizationCsvModal')
-                ->method('importOrganizationCsv'),
 
-            ModalToggle::make('Импортировать сотрудников')
-                ->modal('importModal')
-                ->method('importExcel')
-                ->parameters(['parent_id' => $this->parentId])
-                ->icon('cloud-upload'),
+//            ModalToggle::make('Импортировать сотрудников')
+//                ->modal('importModal')
+//                ->method('importExcel')
+//                ->parameters(['parent_id' => $this->parentId])
+//                ->icon('cloud-upload'),
 
-            Link::make('Должности')
-            ->route('platform.positions')
-            ->icon('star'),
+//            Link::make('Должности')
+//            ->route('platform.positions')
+//            ->icon('star'),
 
                 ModalToggle::make('Добавить структуру')
                     ->modal('createOrUpdateModal')
@@ -108,21 +105,23 @@ class OrganizationStructureScreen extends Screen
         return [
             Layout::table('structures', [
                 TD::make('name_ru', 'Название (RU)')
-                    ->render(function (OrganizationStructure $structure) {
-                        return Link::make($structure->name_ru)
-                            ->route('platform.organization.structure', ['parent_id' => $structure->id]);
-                    }),
+//                    ->render(function (OrganizationStructure $structure) {
+//                        return Link::make($structure->name_ru)
+//                            ->route('platform.organization.structure', ['parent_id' => $structure->id]);
+//                    })
+                ,
 
                 TD::make('name_kz', 'Название (KZ)')
-                    ->render(function (OrganizationStructure $structure) {
-                        return Link::make($structure->name_kz)
-                            ->route('platform.organization.structure', ['parent_id' => $structure->id]);
-                    }),
+//                    ->render(function (OrganizationStructure $structure) {
+//                        return Link::make($structure->name_kz)
+//                            ->route('platform.organization.structure', ['parent_id' => $structure->id]);
+//                    })
+                ,
 
-                TD::make('subdivision_count', 'Количество<br> подразделений')
-                    ->render(function (OrganizationStructure $structure) {
-                        return $structure->preloadedChildrenCount($this->childrenCount->toArray());
-                    })->alignCenter(),
+//                TD::make('subdivision_count', 'Количество<br> подразделений')
+//                    ->render(function (OrganizationStructure $structure) {
+//                        return $structure->preloadedChildrenCount($this->childrenCount->toArray());
+//                    })->alignCenter(),
 
                 TD::make('sotrudniki_count', 'Количество<br> сотрудников')
                     ->render(function (OrganizationStructure $structure) {
@@ -145,15 +144,6 @@ class OrganizationStructureScreen extends Screen
                     }),
             ]),
 
-            Layout::modal('importOrganizationCsvModal', [
-                Layout::rows([
-                    Input::make('csv_file')
-                        ->type('file')
-                        ->title('Выберите файл')
-                        ->required(),
-                ]),
-            ])->title('Импорт структуры')->applyButton('Импортировать'),
-
             Layout::modal('createOrUpdateModal', [
                 Layout::rows([
                     Input::make('structure.id')->type('hidden'),
@@ -166,14 +156,14 @@ class OrganizationStructureScreen extends Screen
                         ->title('Название на казахском')
                         ->required(),
 
-                    Select::make('structure.parent_id')
-                        ->title('Родительская категория')
-                        ->empty('Не выбрано')
-                        ->fromModel(OrganizationStructure::class, 'name_ru', 'id'),
+//                    Select::make('structure.parent_id')
+//                        ->title('Родительская категория')
+//                        ->empty('Не выбрано')
+//                        ->fromModel(OrganizationStructure::class, 'name_ru', 'id'),
 
-                    Switcher::make('structure.is_promzona')
-                        ->sendTrueOrFalse()
-                        ->title('Промзона'),
+//                    Switcher::make('structure.is_promzona')
+//                        ->sendTrueOrFalse()
+//                        ->title('Промзона'),
                 ]),
             ])
                 ->title('Создание или редактирование категории')
@@ -462,9 +452,13 @@ class OrganizationStructureScreen extends Screen
             'structure.name_kz' => 'required|string',
         ]);
 
-        $payload = $request->input('structure', []);
-        $id = $payload['id'] ?? null;
-        unset($payload['id']);
+        $data = $request->input('structure', []);
+        $id = $data['id'] ?? null;
+
+        $payload = [
+            'name_ru' => $data['name_ru'],
+            'name_kz' => $data['name_kz'],
+        ];
 
         if ($id) {
             $org = OrganizationStructure::find($id);
@@ -472,7 +466,7 @@ class OrganizationStructureScreen extends Screen
                 $org->update($payload);
             } else {
                 $org = new OrganizationStructure($payload);
-                $org->id = (int)$id; // ручная установка первичного ключа при необходимости
+                $org->id = (int)$id;
                 $org->save();
             }
         } else {

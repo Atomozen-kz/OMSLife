@@ -43,12 +43,12 @@ class PlatformProvider extends OrchidServiceProvider
 //                ->title('Navigation')
 //                ->route(config('platform.index')),
 
-            Menu::make('Структура')
-                ->icon('bs.shuffle')
-                ->title('Орг Структура')
-                ->route('platform.organization.structure')
-                ->permission('platform.organization.structure')
-            ,
+//            Menu::make('Структура')
+//                ->icon('bs.shuffle')
+//                ->title('Орг Структура')
+//                ->route('platform.organization.structure')
+//                ->permission('platform.organization.structure')
+//            ,
 
 //            Menu::make('Должности')
 //                ->icon('bs.star')
@@ -57,6 +57,7 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Сотрудники')
                 ->icon('bs.people')
                 ->route('platform.sotrudniki')
+                ->title('Отдел кадров')
                 ->permission('platform.sotrudniki'),
 
             Menu::make('Контакты АУП')
