@@ -177,7 +177,12 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('Ремонт скважин')
                 ->icon('bs.tools')
                 ->route('platform.remont-brigades')
-                ->permission('platform.remont-brigades')
+                ->permission('platform.remont-brigades'),
+
+            Menu::make('Планы ремонта (V2)')
+                ->icon('bs.calendar-check')
+                ->route('platform.remont-plans')
+                ->permission('platform.remont-plans')
                 ->divider(),
 
             Menu::make('Жировки')
@@ -345,7 +350,8 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Добыча нефти')
                 ->addPermission('platform.extraction', 'Добыча нефти')
-                ->addPermission('platform.remont-brigades', 'Ремонт скважин'),
+                ->addPermission('platform.remont-brigades', 'Ремонт скважин')
+                ->addPermission('platform.remont-plans', 'Планы ремонта (V2)'),
 
             ItemPermission::group('Жировки')
                 ->addPermission('platform.payroll-slip', 'Жировки'),

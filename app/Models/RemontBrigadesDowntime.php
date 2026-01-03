@@ -45,7 +45,6 @@ class RemontBrigadesDowntime extends Model
 
     protected $fillable = [
         'plan_id',
-        'brigade_id',
         'reason',
         'hours',
     ];
@@ -63,11 +62,11 @@ class RemontBrigadesDowntime extends Model
     }
 
     /**
-     * Связь с бригадой
+     * Получить бригаду через план
      */
-    public function brigade(): BelongsTo
+    public function getBrigadeAttribute(): ?RemontBrigade
     {
-        return $this->belongsTo(RemontBrigade::class, 'brigade_id');
+        return $this->plan?->brigade;
     }
 
     /**

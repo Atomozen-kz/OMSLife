@@ -271,6 +271,10 @@ Route::screen('/statistics/{month}', StatisticsMonthDetailScreen::class)->name('
 Route::screen('/remont-brigades', \App\Orchid\Screens\RemontBrigadesScreen::class)->name('platform.remont-brigades');
 Route::screen('/remont-brigades/{month}', \App\Orchid\Screens\RemontBrigadesMonthDetailScreen::class)->name('platform.remont-brigades.month');
 
+// Планы ремонта скважин (V2)
+Route::screen('/remont-plans', \App\Orchid\Screens\RemontBrigadesPlanScreen::class)->name('platform.remont-plans');
+Route::screen('/remont-plans/{month}/{brigade}', \App\Orchid\Screens\RemontBrigadesPlanDetailScreen::class)->name('platform.remont-plans.detail');
+
 // Посещаемые места (партнёры)
 Route::screen('/partner-places', \App\Orchid\Screens\PartnerPlaceScreen::class)->name('platform.partner-places');
 
