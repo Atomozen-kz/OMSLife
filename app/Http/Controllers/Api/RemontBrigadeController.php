@@ -368,6 +368,13 @@ class RemontBrigadeController extends Controller
                     'name' => 'Всего',
                     'monthly_data' => array_values($totalData),
                     'workshops_summary' => $workshopsSummary,
+                    'total_data' => [
+                        'plan' => array_sum(array_column($totalData, 'plan')),
+                        'fact' => array_sum(array_column($totalData, 'fact')),
+                        'unv_plan' => array_sum(array_column($totalData, 'unv_plan')),
+                        'unv_hours' => array_sum(array_column($totalData, 'unv_hours')),
+                        'downtime' => array_sum(array_column($totalData, 'downtime')),
+                    ],
                 ],
                 'workshops' => $workshopsData,
             ],
