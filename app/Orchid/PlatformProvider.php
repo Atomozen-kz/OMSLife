@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid;
 
+use App\Models\SpravkaSotrudnikam;
 use Orchid\Platform\Dashboard;
 use Orchid\Platform\ItemPermission;
 use Orchid\Platform\OrchidServiceProvider;
@@ -143,6 +144,7 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.filetype-pdf')
                 ->route('platform.spravka-sotrudnikam')
                 ->permission('platform.spravka-sotrudnikam')
+                ->badge(fn()=> SpravkaSotrudnikam::where('status', 1)->count(), Color::DANGER)
                 ->divider(),
 
             Menu::make('Карта промзоны')
