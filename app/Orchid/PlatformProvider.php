@@ -61,9 +61,23 @@ class PlatformProvider extends OrchidServiceProvider
                 ->title('Отдел кадров')
                 ->permission('platform.sotrudniki'),
 
+            Menu::make('Справка с места работы')
+                ->icon('bs.filetype-pdf')
+                ->route('platform.spravka-sotrudnikam')
+                ->permission('platform.spravka-sotrudnikam')
+                ->badge(fn()=> SpravkaSotrudnikam::where('status', 1)->count(), Color::DANGER)
+                ->divider(),
+
+            Menu::make('Корпоративный учебный центр')
+                ->icon('bs.person-vcard')
+                ->title('Корпоративный учебный центр')
+                ->route('platform.training-center')
+                ->permission('platform.training-center'),
+
             Menu::make('Контакты АУП')
                 ->icon('bs.person-rolodex')
                 ->route('platform.contacts')
+                ->title('Контакты')
                 ->permission('platform.contacts')
                 ->divider(),
 
@@ -140,18 +154,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route('platform.organization-signers')
                 ->permission('platform.organization-signers'),
 
-            Menu::make('Справка с места работы')
-                ->icon('bs.filetype-pdf')
-                ->route('platform.spravka-sotrudnikam')
-                ->permission('platform.spravka-sotrudnikam')
-                ->badge(fn()=> SpravkaSotrudnikam::where('status', 1)->count(), Color::DANGER)
-                ->divider(),
-
-            Menu::make('Карта промзоны')
-                ->icon('bs.pin-map-fill')
-                ->route('platform.promzona-geo-objects')
-                ->permission('platform.promzona-geo-objects')
-                ->divider(),
+//            Menu::make('Карта промзоны')
+//                ->icon('bs.pin-map-fill')
+//                ->route('platform.promzona-geo-objects')
+//                ->permission('platform.promzona-geo-objects')
+//                ->divider(),
 
 //            Menu::make('Карта промзоны OLD')
 //                ->icon('bs.pin-map-fill')
@@ -159,11 +166,7 @@ class PlatformProvider extends OrchidServiceProvider
 //                ->permission('platform.promzona-map')
 //                ->divider(),
 
-            Menu::make('Корпоративный учебный центр')
-                ->icon('bs.person-vcard')
-                ->title('Корпоративный учебный центр')
-                ->route('platform.training-center')
-                ->permission('platform.training-center'),
+
 
             Menu::make('Памятки по тех. безопасности')
                 ->icon('bs.shield-exclamation')
