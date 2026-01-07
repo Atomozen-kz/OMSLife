@@ -356,6 +356,7 @@ class RemontBrigadeController extends Controller
                 'unv_hours' => count($brigadeYearUnvHoursAverages) > 0
                     ? (int) round(array_sum($brigadeYearUnvHoursAverages) / count($brigadeYearUnvHoursAverages))
                     : 0,
+                'avg_brigades_unv_hours' => $brigadeYearUnvHoursAverages,
                 'downtime' => $workshopYearDowntime,
             ];
         }
@@ -394,6 +395,7 @@ class RemontBrigadeController extends Controller
                             ? (int) round(array_sum($totalUnvHoursRaw) / array_sum($totalUnvHoursCount))
                             : 0,
                         'downtime' => array_sum(array_column($totalData, 'downtime')),
+
                     ],
                 ],
                 'workshops' => $workshopsData,
