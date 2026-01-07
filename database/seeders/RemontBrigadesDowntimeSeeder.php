@@ -16,7 +16,7 @@ class RemontBrigadesDowntimeSeeder extends Seeder
 
     public function run(): void
     {
-        $filePath = database_path('seeders/data/Простои.xlsx');
+        $filePath = database_path('seeders/data/Бос тұрыстар (декабрь).xlsx');
 
         if (!file_exists($filePath)) {
             throw new \RuntimeException("Excel file not found: {$filePath}");
