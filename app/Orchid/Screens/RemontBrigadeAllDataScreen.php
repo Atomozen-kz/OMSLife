@@ -42,8 +42,8 @@ class RemontBrigadeAllDataScreen extends Screen
 
         $fullData = RemontBrigadeFullData::whereIn('plan_id', $planIds)
             ->with('plan')
-            ->orderBy('end_date', 'desc')
-            ->orderBy('id', 'desc')
+            ->orderBy('end_date', 'asc')
+            ->orderBy('id', 'asc')
             ->get();
 
         // Статистика
