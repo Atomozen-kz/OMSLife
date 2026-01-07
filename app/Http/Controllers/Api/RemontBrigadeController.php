@@ -183,6 +183,7 @@ class RemontBrigadeController extends Controller
         // Формируем данные по цехам
         $workshopsData = [];
         $workshopsSummary = []; // Данные по цехам за весь год
+        $allBrigadeYearUnvHoursAverages = []; // Массив для хранения годовых средних unv_hours по всем бригадам
 
         foreach ($workshops as $workshop) {
             $workshopMonthlyData = [];
@@ -200,9 +201,6 @@ class RemontBrigadeController extends Controller
             $workshopYearUnvPlanRaw = 0;
             $workshopYearUnvPlanCount = 0;
             $workshopYearDowntime = 0;
-
-            // Массив для хранения годовых средних unv_hours по бригадам
-            $brigadeYearUnvHoursAverages = [];
 
             foreach ($months as $monthYear) {
                 $workshopMonthlyData[$monthYear] = [
@@ -310,9 +308,9 @@ class RemontBrigadeController extends Controller
                     $brigadeMonthlyData[$monthYear]['downtime'] = $brigadeDowntime[$monthYear];
                 }
 
-                // Вычисляем годовое среднее unv_hours для бригады и добавляем в массив
+                // Вычисляем годовое среднее unv_hours для бригады и добавляем в общий массив
                 if ($brigadeYearUnvHoursCount > 0) {
-                    $brigadeYearUnvHoursAverages[] = (int) round($brigadeYearUnvHoursRaw / $brigadeYearUnvHoursCount);
+                    $allBrigadeYearUnvHoursAverages[] = (int) round($brigadeYearUnvHoursRaw / $brigadeYearUnvHoursCount);
                 }
 
                 $brigadesData[] = [
@@ -353,10 +351,9 @@ class RemontBrigadeController extends Controller
                 'unv_plan' => $workshopYearUnvPlanCount > 0
                     ? (int) round($workshopYearUnvPlanRaw / $workshopYearUnvPlanCount)
                     : 0,
-                'unv_hours' => count($brigadeYearUnvHoursAverages) > 0
-                    ? (int) round(array_sum($brigadeYearUnvHoursAverages) / count($brigadeYearUnvHoursAverages))
+                'unv_hours' => $workshopYearUnvHoursCount > 0
+                    ? (int) round($workshopYearUnvHoursRaw / $workshopYearUnvHoursCount)
                     : 0,
-                'avg_brigades_unv_hours' => $brigadeYearUnvHoursAverages,
                 'downtime' => $workshopYearDowntime,
             ];
         }
@@ -391,11 +388,10 @@ class RemontBrigadeController extends Controller
                         'unv_plan' => array_sum($totalUnvPlanCount) > 0
                             ? (int) round(array_sum($totalUnvPlanRaw) / array_sum($totalUnvPlanCount))
                             : 0,
-                        'unv_hours' => array_sum($totalUnvHoursCount) > 0
-                            ? (int) round(array_sum($totalUnvHoursRaw) / array_sum($totalUnvHoursCount))
+                        'unv_hours' => count($allBrigadeYearUnvHoursAverages) > 0
+                            ? (int) round(array_sum($allBrigadeYearUnvHoursAverages) / count($allBrigadeYearUnvHoursAverages))
                             : 0,
                         'downtime' => array_sum(array_column($totalData, 'downtime')),
-
                     ],
                 ],
                 'workshops' => $workshopsData,
