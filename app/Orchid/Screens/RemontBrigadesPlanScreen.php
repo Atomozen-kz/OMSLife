@@ -258,7 +258,11 @@ class RemontBrigadesPlanScreen extends Screen
             Layout::table('brigadeStats', [
                 TD::make('workshop_name', 'Цех'),
 
-                TD::make('name', 'Бригада'),
+                TD::make('name', 'Бригада')
+                    ->render(function (Repository $item) {
+                        return Link::make($item->get('name'))
+                            ->route('platform.remont-plans.brigade', ['brigade' => $item->get('id')]);
+                    }),
 
                 TD::make('total_plan', 'План')
                     ->alignCenter(),

@@ -273,6 +273,7 @@ Route::screen('/remont-brigades/{month}', \App\Orchid\Screens\RemontBrigadesMont
 
 // Планы ремонта скважин (V2)
 Route::screen('/remont-plans', \App\Orchid\Screens\RemontBrigadesPlanScreen::class)->name('platform.remont-plans');
+Route::screen('/remont-plans/brigade/{brigade}', \App\Orchid\Screens\RemontBrigadeAllDataScreen::class)->name('platform.remont-plans.brigade');
 Route::screen('/remont-plans/{month}/{brigade}', \App\Orchid\Screens\RemontBrigadesPlanDetailScreen::class)->name('platform.remont-plans.detail');
 
 // Посещаемые места (партнёры)
