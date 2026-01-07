@@ -15,6 +15,7 @@ use Orchid\Screen\Fields\Input;
 use Orchid\Screen\Fields\Select;
 use Orchid\Screen\Fields\TextArea;
 use Orchid\Screen\Layouts\Modal;
+use Orchid\Screen\Repository;
 use Orchid\Screen\Screen;
 use Orchid\Screen\TD;
 use Orchid\Support\Facades\Layout;
@@ -86,10 +87,41 @@ class RemontBrigadesPlanScreen extends Screen
                 return $item;
             });
 
+        // Статистика по бригадам (все бригады, у которых parent_id не null)
+        $brigadeStats = RemontBrigade::whereNotNull('parent_id')
+            ->with(['plans.fullData', 'parent'])
+            ->get()
+            ->map(function (RemontBrigade $brigade) {
+                $totalPlan = $brigade->plans->sum('plan');
+                $totalFact = $brigade->plans->sum(function ($plan) {
+                    return $plan->fullData->count();
+                });
+
+                // Считаем средний УНВ (unv_hours) из fullData
+                $allFullData = $brigade->plans->flatMap(function ($plan) {
+                    return $plan->fullData;
+                });
+
+                $avgUnv = $allFullData->count() > 0
+                    ? round($allFullData->avg('unv_hours'), 1)
+                    : 0;
+
+                return new Repository([
+                    'id' => $brigade->id,
+                    'name' => $brigade->name,
+                    'workshop_name' => $brigade->parent?->name ?? '-',
+                    'total_plan' => $totalPlan,
+                    'total_fact' => $totalFact,
+                    'deviation' => $totalFact - $totalPlan,
+                    'avg_unv' => $avgUnv,
+                ]);
+            });
+
         return [
             'workshops' => $workshops,
             'workshopId' => null,
             'monthlyStats' => $monthlyStats,
+            'brigadeStats' => $brigadeStats,
         ];
     }
 
@@ -153,10 +185,11 @@ class RemontBrigadesPlanScreen extends Screen
             return $this->brigadesLayout();
         }
 
-        // Иначе показываем цехи + таблицу месяцев
+        // Иначе показываем цехи + таблицу месяцев + статистику по бригадам
         return array_merge(
             $this->workshopsLayout(),
             $this->monthsTableLayout(),
+            $this->brigadeStatsTableLayout(),
             $this->brigadesModals()
         );
     }
@@ -206,6 +239,47 @@ class RemontBrigadesPlanScreen extends Screen
                         $color = $item->deviation >= 0 ? '#28a745' : '#dc3545';
                         $prefix = $item->deviation >= 0 ? '+' : '';
                         return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$item->deviation}</span>";
+                    }),
+            ]),
+        ];
+    }
+
+    /**
+     * Layout для таблицы статистики по бригадам
+     */
+    protected function brigadeStatsTableLayout(): array
+    {
+        return [
+            Layout::rows([
+                \Orchid\Screen\Fields\Label::make('')
+                    ->title('Статистика по бригадам'),
+            ]),
+
+            Layout::table('brigadeStats', [
+                TD::make('workshop_name', 'Цех'),
+
+                TD::make('name', 'Бригада'),
+
+                TD::make('total_plan', 'План')
+                    ->alignCenter(),
+
+                TD::make('total_fact', 'Факт')
+                    ->alignCenter(),
+
+                TD::make('deviation', 'Отклонение')
+                    ->alignCenter()
+                    ->render(function (Repository $item) {
+                        $deviation = $item->get('deviation');
+                        $color = $deviation >= 0 ? '#28a745' : '#dc3545';
+                        $prefix = $deviation >= 0 ? '+' : '';
+                        return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$deviation}</span>";
+                    }),
+
+                TD::make('avg_unv', 'Средний УНВ (часы)')
+                    ->alignCenter()
+                    ->render(function (Repository $item) {
+                        $avgUnv = $item->get('avg_unv');
+                        return $avgUnv > 0 ? $avgUnv : '-';
                     }),
             ]),
         ];
