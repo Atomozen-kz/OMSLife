@@ -81,9 +81,16 @@ class RemontBrigadesPlanScreen extends Screen
                 $planIds = RemontBrigadesPlan::where('month', $item->month)->pluck('id');
                 $totalFact = RemontBrigadeFullData::whereIn('plan_id', $planIds)->count();
 
+                // Считаем средний УНВ из fullData для этого месяца
+                $allFullDataForMonth = RemontBrigadeFullData::whereIn('plan_id', $planIds);
+                $avgUnv = $allFullDataForMonth->count() > 0
+                    ? round($allFullDataForMonth->avg('unv_hours'), 1)
+                    : 0;
+
                 $item->total_fact = $totalFact;
                 $item->deviation = $totalFact - $item->total_plan;
                 $item->month_name_ru = RemontBrigadesPlan::formatMonthYearRu($item->month);
+                $item->avg_unv = $avgUnv;
                 return $item;
             });
 
@@ -239,6 +246,13 @@ class RemontBrigadesPlanScreen extends Screen
                         $color = $item->deviation >= 0 ? '#28a745' : '#dc3545';
                         $prefix = $item->deviation >= 0 ? '+' : '';
                         return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$item->deviation}</span>";
+                    }),
+
+                TD::make('avg_unv', 'Средний УНВ (часы)')
+                    ->alignCenter()
+                    ->render(function ($item) {
+                        $avgUnv = $item->avg_unv;
+                        return $avgUnv > 0 ? $avgUnv : '-';
                     }),
             ]),
         ];

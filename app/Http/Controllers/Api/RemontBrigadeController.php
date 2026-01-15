@@ -28,31 +28,38 @@ class RemontBrigadeController extends Controller
     {
         $year = $request->get('year', date('Y'));
 
-        // Получаем все цехи с бригадами и их данными
+        // Получаем все цехи с бригадами и их планами с полными данными
         $workshops = RemontBrigade::workshops()
-            ->with(['children.data' => function ($query) use ($year) {
-                $query->where('month_year', 'like', $year . '-%')
-                    ->orderBy('month_year');
-            }, 'data' => function ($query) use ($year) {
-                $query->where('month_year', 'like', $year . '-%')
-                    ->orderBy('month_year');
+            ->with(['children.plans' => function ($query) use ($year) {
+                $query->where('month', 'like', $year . '-%')
+                    ->orderBy('month')
+                    ->with(['fullData:id,plan_id,unv_hours']);
+            }, 'plans' => function ($query) use ($year) {
+                $query->where('month', 'like', $year . '-%')
+                    ->orderBy('month')
+                    ->with(['fullData:id,plan_id,unv_hours']);
             }])
             ->get();
 
         // Собираем все месяцы за год
         $months = [];
         for ($m = 1; $m <= 12; $m++) {
-            $months[] = RemontBrigadeData::formatMonthYear($year, $m);
+            $months[] = RemontBrigadesPlan::formatMonthYear($year, $m);
         }
 
-        // Структура для общих данных
+        // Структура для общих данных (храним сырую сумму и количество для среднего)
         $totalData = [];
+        $totalUnvHoursRaw = [];
+        $totalUnvHoursCount = [];
         foreach ($months as $monthYear) {
             $totalData[$monthYear] = [
                 'month_year' => $monthYear,
                 'plan' => 0,
                 'fact' => 0,
+                'unv_hours' => 0,
             ];
+            $totalUnvHoursRaw[$monthYear] = 0;
+            $totalUnvHoursCount[$monthYear] = 0;
         }
 
         // Формируем данные по цехам
@@ -60,12 +67,18 @@ class RemontBrigadeController extends Controller
 
         foreach ($workshops as $workshop) {
             $workshopMonthlyData = [];
+            $workshopUnvHoursRaw = [];
+            $workshopUnvHoursCount = [];
+
             foreach ($months as $monthYear) {
                 $workshopMonthlyData[$monthYear] = [
                     'month_year' => $monthYear,
                     'plan' => 0,
                     'fact' => 0,
+                    'unv_hours' => 0,
                 ];
+                $workshopUnvHoursRaw[$monthYear] = 0;
+                $workshopUnvHoursCount[$monthYear] = 0;
             }
 
             // Формируем данные по бригадам
@@ -73,29 +86,51 @@ class RemontBrigadeController extends Controller
 
             foreach ($workshop->children as $brigade) {
                 $brigadeMonthlyData = [];
+                $brigadeUnvHoursRaw = [];
+                $brigadeUnvHoursCount = [];
 
                 foreach ($months as $monthYear) {
                     $brigadeMonthlyData[$monthYear] = [
                         'month_year' => $monthYear,
                         'plan' => 0,
                         'fact' => 0,
+                        'unv_hours' => 0,
                     ];
+                    $brigadeUnvHoursRaw[$monthYear] = 0;
+                    $brigadeUnvHoursCount[$monthYear] = 0;
                 }
 
-                // Заполняем данные бригады
-                foreach ($brigade->data as $data) {
-                    if (isset($brigadeMonthlyData[$data->month_year])) {
-                        $brigadeMonthlyData[$data->month_year]['plan'] = $data->plan;
-                        $brigadeMonthlyData[$data->month_year]['fact'] = $data->fact;
+                // Заполняем данные бригады из plans
+                foreach ($brigade->plans as $planData) {
+                    if (isset($brigadeMonthlyData[$planData->month])) {
+                        $fact = $planData->fullData->count();
+                        $unvHoursSum = $planData->fullData->sum('unv_hours') ?? 0;
+
+                        $brigadeMonthlyData[$planData->month]['plan'] = $planData->plan;
+                        $brigadeMonthlyData[$planData->month]['fact'] = $fact;
+                        $brigadeUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $brigadeUnvHoursCount[$planData->month] += $fact;
 
                         // Суммируем к цеху
-                        $workshopMonthlyData[$data->month_year]['plan'] += $data->plan;
-                        $workshopMonthlyData[$data->month_year]['fact'] += $data->fact;
+                        $workshopMonthlyData[$planData->month]['plan'] += $planData->plan;
+                        $workshopMonthlyData[$planData->month]['fact'] += $fact;
+                        $workshopUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $workshopUnvHoursCount[$planData->month] += $fact;
 
                         // Суммируем к общим данным
-                        $totalData[$data->month_year]['plan'] += $data->plan;
-                        $totalData[$data->month_year]['fact'] += $data->fact;
+                        $totalData[$planData->month]['plan'] += $planData->plan;
+                        $totalData[$planData->month]['fact'] += $fact;
+                        $totalUnvHoursRaw[$planData->month] += $unvHoursSum;
+                        $totalUnvHoursCount[$planData->month] += $fact;
                     }
+                }
+
+                // Вычисляем среднее unv_hours для бригады
+                foreach ($months as $monthYear) {
+                    $count = $brigadeUnvHoursCount[$monthYear];
+                    $brigadeMonthlyData[$monthYear]['unv_hours'] = $count > 0
+                        ? (int) round($brigadeUnvHoursRaw[$monthYear] / $count)
+                        : 0;
                 }
 
                 $brigadesData[] = [
@@ -103,6 +138,14 @@ class RemontBrigadeController extends Controller
                     'name' => $brigade->name,
                     'monthly_data' => array_values($brigadeMonthlyData),
                 ];
+            }
+
+            // Вычисляем среднее unv_hours для цеха
+            foreach ($months as $monthYear) {
+                $countHours = $workshopUnvHoursCount[$monthYear];
+                $workshopMonthlyData[$monthYear]['unv_hours'] = $countHours > 0
+                    ? (int) round($workshopUnvHoursRaw[$monthYear] / $countHours)
+                    : 0;
             }
 
             $workshopsData[] = [
@@ -113,11 +156,19 @@ class RemontBrigadeController extends Controller
             ];
         }
 
+        // Вычисляем среднее unv_hours для общих данных
+        foreach ($months as $monthYear) {
+            $countHours = $totalUnvHoursCount[$monthYear];
+            $totalData[$monthYear]['unv_hours'] = $countHours > 0
+                ? (int) round($totalUnvHoursRaw[$monthYear] / $countHours)
+                : 0;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
                 'year' => (int) $year,
-                'months' => RemontBrigadeData::getMonthNames(),
+                'months' => RemontBrigadesPlan::getMonthNames(),
                 'total' => [
                     'name' => 'Всего',
                     'monthly_data' => array_values($totalData),
