@@ -439,8 +439,8 @@ class RemontBrigadeController extends Controller
                         'unv_plan' => array_sum($totalUnvPlanCount) > 0
                             ? (int) round(array_sum($totalUnvPlanRaw) / array_sum($totalUnvPlanCount))
                             : 0,
-                        'unv_hours' => count($allBrigadeYearUnvHoursAverages) > 0
-                            ? (int) round(array_sum($allBrigadeYearUnvHoursAverages) / count($allBrigadeYearUnvHoursAverages))
+                        'unv_hours' => array_sum($totalUnvHoursCount) > 0
+                            ? (int) round(array_sum($totalUnvHoursRaw) / array_sum($totalUnvHoursCount))
                             : 0,
                         'downtime' => array_sum(array_column($totalData, 'downtime')),
                     ],
