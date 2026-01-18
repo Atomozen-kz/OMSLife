@@ -560,5 +560,376 @@ class RemontBrigadeController extends Controller
             'data' => $brigades,
         ]);
     }
+
+    /**
+     * Данные для графика на главной странице
+     * Возвращает агрегированные данные за последние 12 месяцев
+     *
+     * @return JsonResponse
+     */
+    public function chartOnMain(): JsonResponse
+    {
+        // Вычисляем 12 последних месяцев
+        $months = [];
+        $currentDate = now();
+
+        for ($i = 11; $i >= 0; $i--) {
+            $date = $currentDate->copy()->subMonths($i);
+            $months[] = $date->format('Y-m');
+        }
+
+        $result = [];
+
+        foreach ($months as $month) {
+            // Получаем plan_id всех планов для этого месяца
+            $planIds = RemontBrigadesPlan::where('month', $month)->pluck('id');
+
+            // Суммируем plan и unv_plan из RemontBrigadesPlan
+            $planData = RemontBrigadesPlan::where('month', $month)
+                ->selectRaw('SUM(plan) as plan, AVG(unv_plan) as unv_plan')
+                ->first();
+
+            // Считаем fact (количество записей) и unv_fact (сумма unv_hours) из RemontBrigadeFullData
+            $factData = RemontBrigadeFullData::whereIn('plan_id', $planIds)
+                ->selectRaw('COUNT(*) as fact, AVG(unv_hours) as unv_fact')
+                ->first();
+
+            $result[] = [
+                'month' => $month,
+                'plan' => (int) ($planData->plan ?? 0),
+                'fact' => (int) ($factData->fact ?? 0),
+                'unv_plan' => (int) ($planData->unv_plan ?? 0),
+                'unv_fact' => (int) round($factData->unv_fact ?? 0),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Группировка данных по году
+     * Возвращает агрегированные данные за год с разбивкой по месяцам, цехам и бригадам
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function groupYear(Request $request): JsonResponse
+    {
+        // Получаем все уникальные года из планов
+        $years = RemontBrigadesPlan::selectRaw('DISTINCT LEFT(month, 4) as year_value')
+            ->orderByRaw('LEFT(month, 4) DESC')
+            ->pluck('year_value')
+            ->toArray();
+
+        if (empty($years)) {
+            return response()->json([
+                'success' => true,
+                'data' => [],
+            ]);
+        }
+
+        $result = [];
+
+        foreach ($years as $year) {
+            $yearData = $this->getYearData($year);
+            $result[] = $yearData;
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Получить данные за конкретный год
+     *
+     * @param string $year
+     * @return array
+     */
+    private function getYearData(string $year): array
+    {
+        // Собираем все месяцы за год
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[] = RemontBrigadesPlan::formatMonthYear($year, $m);
+        }
+
+        // Получаем все цехи с бригадами
+        $workshops = RemontBrigade::workshops()
+            ->with(['children.plans' => function ($query) use ($year) {
+                $query->where('month', 'like', $year . '-%')
+                    ->orderBy('month')
+                    ->with(['fullData:id,plan_id,unv_hours', 'downtimes:id,plan_id,hours']);
+            }])
+            ->get();
+
+        // Инициализация общих данных
+        $totalPlan = 0;
+        $totalFact = 0;
+        $totalUnvPlanSum = 0;
+        $totalUnvPlanCount = 0;
+        $totalUnvFactSum = 0;
+        $totalUnvFactCount = 0;
+        $totalDowntime = 0;
+
+        // Данные по месяцам (общие) - храним суммы и счётчики для среднего
+        $monthlyData = [];
+        $monthlyUnvPlanSum = [];
+        $monthlyUnvPlanCount = [];
+        $monthlyUnvFactSum = [];
+        $monthlyUnvFactCount = [];
+        foreach ($months as $month) {
+            $monthlyData[$month] = [
+                'month' => $month,
+                'plan' => 0,
+                'fact' => 0,
+                'downtime' => 0,
+            ];
+            $monthlyUnvPlanSum[$month] = 0;
+            $monthlyUnvPlanCount[$month] = 0;
+            $monthlyUnvFactSum[$month] = 0;
+            $monthlyUnvFactCount[$month] = 0;
+        }
+
+        // Данные по цехам
+        $workshopsData = [];
+
+        foreach ($workshops as $workshop) {
+            $workshopPlan = 0;
+            $workshopFact = 0;
+            $workshopUnvPlanSum = 0;
+            $workshopUnvPlanCount = 0;
+            $workshopUnvFactSum = 0;
+            $workshopUnvFactCount = 0;
+            $workshopDowntime = 0;
+
+            $workshopMonthly = [];
+            $workshopMonthlyUnvPlanSum = [];
+            $workshopMonthlyUnvPlanCount = [];
+            $workshopMonthlyUnvFactSum = [];
+            $workshopMonthlyUnvFactCount = [];
+            foreach ($months as $month) {
+                $workshopMonthly[$month] = [
+                    'month' => $month,
+                    'plan' => 0,
+                    'fact' => 0,
+                    'downtime' => 0,
+                ];
+                $workshopMonthlyUnvPlanSum[$month] = 0;
+                $workshopMonthlyUnvPlanCount[$month] = 0;
+                $workshopMonthlyUnvFactSum[$month] = 0;
+                $workshopMonthlyUnvFactCount[$month] = 0;
+            }
+
+            $brigadesData = [];
+
+            foreach ($workshop->children as $brigade) {
+                $brigadePlan = 0;
+                $brigadeFact = 0;
+                $brigadeUnvPlanSum = 0;
+                $brigadeUnvPlanCount = 0;
+                $brigadeUnvFactSum = 0;
+                $brigadeUnvFactCount = 0;
+                $brigadeDowntime = 0;
+
+                $brigadeMonthly = [];
+                $brigadeMonthlyUnvPlanSum = [];
+                $brigadeMonthlyUnvPlanCount = [];
+                $brigadeMonthlyUnvFactSum = [];
+                $brigadeMonthlyUnvFactCount = [];
+                foreach ($months as $month) {
+                    $brigadeMonthly[$month] = [
+                        'month' => $month,
+                        'plan' => 0,
+                        'fact' => 0,
+                        'downtime' => 0,
+                    ];
+                    $brigadeMonthlyUnvPlanSum[$month] = 0;
+                    $brigadeMonthlyUnvPlanCount[$month] = 0;
+                    $brigadeMonthlyUnvFactSum[$month] = 0;
+                    $brigadeMonthlyUnvFactCount[$month] = 0;
+                }
+
+                foreach ($brigade->plans as $plan) {
+                    $monthKey = $plan->month;
+                    $planValue = $plan->plan ?? 0;
+                    $unvPlanValue = $plan->unv_plan ?? 0;
+                    $factValue = $plan->fullData->count();
+                    $unvFactValues = $plan->fullData->pluck('unv_hours')->filter(fn($v) => $v > 0);
+                    $downtimeValue = $plan->downtimes->sum('hours');
+
+                    // Бригада
+                    $brigadePlan += $planValue;
+                    $brigadeFact += $factValue;
+                    if ($unvPlanValue > 0) {
+                        $brigadeUnvPlanSum += $unvPlanValue;
+                        $brigadeUnvPlanCount++;
+                    }
+                    $brigadeUnvFactSum += $unvFactValues->sum();
+                    $brigadeUnvFactCount += $unvFactValues->count();
+                    $brigadeDowntime += $downtimeValue;
+
+                    if (isset($brigadeMonthly[$monthKey])) {
+                        $brigadeMonthly[$monthKey]['plan'] += $planValue;
+                        $brigadeMonthly[$monthKey]['fact'] += $factValue;
+                        $brigadeMonthly[$monthKey]['downtime'] += $downtimeValue;
+                        if ($unvPlanValue > 0) {
+                            $brigadeMonthlyUnvPlanSum[$monthKey] += $unvPlanValue;
+                            $brigadeMonthlyUnvPlanCount[$monthKey]++;
+                        }
+                        $brigadeMonthlyUnvFactSum[$monthKey] += $unvFactValues->sum();
+                        $brigadeMonthlyUnvFactCount[$monthKey] += $unvFactValues->count();
+                    }
+
+                    // Цех
+                    $workshopPlan += $planValue;
+                    $workshopFact += $factValue;
+                    if ($unvPlanValue > 0) {
+                        $workshopUnvPlanSum += $unvPlanValue;
+                        $workshopUnvPlanCount++;
+                    }
+                    $workshopUnvFactSum += $unvFactValues->sum();
+                    $workshopUnvFactCount += $unvFactValues->count();
+                    $workshopDowntime += $downtimeValue;
+
+                    if (isset($workshopMonthly[$monthKey])) {
+                        $workshopMonthly[$monthKey]['plan'] += $planValue;
+                        $workshopMonthly[$monthKey]['fact'] += $factValue;
+                        $workshopMonthly[$monthKey]['downtime'] += $downtimeValue;
+                        if ($unvPlanValue > 0) {
+                            $workshopMonthlyUnvPlanSum[$monthKey] += $unvPlanValue;
+                            $workshopMonthlyUnvPlanCount[$monthKey]++;
+                        }
+                        $workshopMonthlyUnvFactSum[$monthKey] += $unvFactValues->sum();
+                        $workshopMonthlyUnvFactCount[$monthKey] += $unvFactValues->count();
+                    }
+
+                    // Общие
+                    $totalPlan += $planValue;
+                    $totalFact += $factValue;
+                    if ($unvPlanValue > 0) {
+                        $totalUnvPlanSum += $unvPlanValue;
+                        $totalUnvPlanCount++;
+                    }
+                    $totalUnvFactSum += $unvFactValues->sum();
+                    $totalUnvFactCount += $unvFactValues->count();
+                    $totalDowntime += $downtimeValue;
+
+                    if (isset($monthlyData[$monthKey])) {
+                        $monthlyData[$monthKey]['plan'] += $planValue;
+                        $monthlyData[$monthKey]['fact'] += $factValue;
+                        $monthlyData[$monthKey]['downtime'] += $downtimeValue;
+                        if ($unvPlanValue > 0) {
+                            $monthlyUnvPlanSum[$monthKey] += $unvPlanValue;
+                            $monthlyUnvPlanCount[$monthKey]++;
+                        }
+                        $monthlyUnvFactSum[$monthKey] += $unvFactValues->sum();
+                        $monthlyUnvFactCount[$monthKey] += $unvFactValues->count();
+                    }
+                }
+
+                // Вычисляем средние для бригады по месяцам
+                $brigadeMonthlyWithPercent = [];
+                foreach ($brigadeMonthly as $month => $data) {
+                    $unvPlan = $brigadeMonthlyUnvPlanCount[$month] > 0
+                        ? (int) round($brigadeMonthlyUnvPlanSum[$month] / $brigadeMonthlyUnvPlanCount[$month])
+                        : 0;
+                    $unvFact = $brigadeMonthlyUnvFactCount[$month] > 0
+                        ? (int) round($brigadeMonthlyUnvFactSum[$month] / $brigadeMonthlyUnvFactCount[$month])
+                        : 0;
+                    $data['unv_plan'] = $unvPlan;
+                    $data['unv_fact'] = $unvFact;
+                    $data['percent'] = $data['plan'] > 0 ? round(($data['fact'] / $data['plan']) * 100) : 0;
+                    $data['unv_percent'] = $unvPlan > 0 ? round(($unvFact / $unvPlan) * 100) : 0;
+                    $brigadeMonthlyWithPercent[] = $data;
+                }
+
+                $brigadeUnvPlan = $brigadeUnvPlanCount > 0 ? (int) round($brigadeUnvPlanSum / $brigadeUnvPlanCount) : 0;
+                $brigadeUnvFact = $brigadeUnvFactCount > 0 ? (int) round($brigadeUnvFactSum / $brigadeUnvFactCount) : 0;
+
+                $brigadesData[] = [
+                    'brigada_name' => $brigade->name,
+                    'plan' => $brigadePlan,
+                    'fact' => $brigadeFact,
+                    'percent' => $brigadePlan > 0 ? round(($brigadeFact / $brigadePlan) * 100) : 0,
+                    'unv_plan' => $brigadeUnvPlan,
+                    'unv_fact' => $brigadeUnvFact,
+                    'unv_percent' => $brigadeUnvPlan > 0 ? round(($brigadeUnvFact / $brigadeUnvPlan) * 100) : 0,
+                    'downtime' => $brigadeDowntime,
+                    'monthly' => $brigadeMonthlyWithPercent,
+                ];
+            }
+
+            // Вычисляем средние для цеха по месяцам
+            $workshopMonthlyWithPercent = [];
+            foreach ($workshopMonthly as $month => $data) {
+                $unvPlan = $workshopMonthlyUnvPlanCount[$month] > 0
+                    ? (int) round($workshopMonthlyUnvPlanSum[$month] / $workshopMonthlyUnvPlanCount[$month])
+                    : 0;
+                $unvFact = $workshopMonthlyUnvFactCount[$month] > 0
+                    ? (int) round($workshopMonthlyUnvFactSum[$month] / $workshopMonthlyUnvFactCount[$month])
+                    : 0;
+                $data['unv_plan'] = $unvPlan;
+                $data['unv_fact'] = $unvFact;
+                $data['percent'] = $data['plan'] > 0 ? round(($data['fact'] / $data['plan']) * 100) : 0;
+                $data['unv_percent'] = $unvPlan > 0 ? round(($unvFact / $unvPlan) * 100) : 0;
+                $workshopMonthlyWithPercent[] = $data;
+            }
+
+            $workshopUnvPlan = $workshopUnvPlanCount > 0 ? (int) round($workshopUnvPlanSum / $workshopUnvPlanCount) : 0;
+            $workshopUnvFact = $workshopUnvFactCount > 0 ? (int) round($workshopUnvFactSum / $workshopUnvFactCount) : 0;
+
+            $workshopsData[] = [
+                'workshop_name' => $workshop->name,
+                'plan' => $workshopPlan,
+                'fact' => $workshopFact,
+                'percent' => $workshopPlan > 0 ? round(($workshopFact / $workshopPlan) * 100) : 0,
+                'unv_plan' => $workshopUnvPlan,
+                'unv_fact' => $workshopUnvFact,
+                'unv_percent' => $workshopUnvPlan > 0 ? round(($workshopUnvFact / $workshopUnvPlan) * 100) : 0,
+                'downtime' => $workshopDowntime,
+                'monthly' => $workshopMonthlyWithPercent,
+                'brigada' => $brigadesData,
+            ];
+        }
+
+        // Вычисляем средние для общих данных по месяцам
+        $monthlyWithPercent = [];
+        foreach ($monthlyData as $month => $data) {
+            $unvPlan = $monthlyUnvPlanCount[$month] > 0
+                ? (int) round($monthlyUnvPlanSum[$month] / $monthlyUnvPlanCount[$month])
+                : 0;
+            $unvFact = $monthlyUnvFactCount[$month] > 0
+                ? (int) round($monthlyUnvFactSum[$month] / $monthlyUnvFactCount[$month])
+                : 0;
+            $data['unv_plan'] = $unvPlan;
+            $data['unv_fact'] = $unvFact;
+            $data['percent'] = $data['plan'] > 0 ? round(($data['fact'] / $data['plan']) * 100) : 0;
+            $data['unv_percent'] = $unvPlan > 0 ? round(($unvFact / $unvPlan) * 100) : 0;
+            $monthlyWithPercent[] = $data;
+        }
+
+        $totalUnvPlan = $totalUnvPlanCount > 0 ? (int) round($totalUnvPlanSum / $totalUnvPlanCount) : 0;
+        $totalUnvFact = $totalUnvFactCount > 0 ? (int) round($totalUnvFactSum / $totalUnvFactCount) : 0;
+
+        return [
+            'year' => (int) $year,
+            'total' => [
+                'plan' => $totalPlan,
+                'fact' => $totalFact,
+                'percent' => $totalPlan > 0 ? round(($totalFact / $totalPlan) * 100) : 0,
+                'unv_plan' => $totalUnvPlan,
+                'unv_fact' => $totalUnvFact,
+                'unv_percent' => $totalUnvPlan > 0 ? round(($totalUnvFact / $totalUnvPlan) * 100) : 0,
+                'downtime' => $totalDowntime,
+            ],
+            'monthly' => $monthlyWithPercent,
+            'workshop' => $workshopsData,
+        ];
+    }
 }
 

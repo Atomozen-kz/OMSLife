@@ -15,7 +15,7 @@ class RemontBrigadesPlan2026Seeder extends Seeder
 
     // ⚠️ Ты сказал: Қаңтар = 2026-02 -> значит OFFSET = 1
     // Если нужно Қаңтар = 2026-01 -> поставь 0
-    private const MONTH_OFFSET = 1;
+    private const MONTH_OFFSET = 0;
 
     private const UNV_PLAN_CONST = 390;
 

@@ -230,6 +230,8 @@ Route::prefix('remont-brigades')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'index']);
     Route::get('/v2', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'indexV2']);
     Route::get('/locations', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'locations']);
+    Route::get('/chart-on-main', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'chartOnMain']);
+    Route::get('/group-year', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'groupYear']);
     Route::get('/workshop/{workshopId}', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'workshop']);
 });
 
