@@ -4,14 +4,20 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\RemontBrigadeFullData;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class CompareExcelWithRemontBrigadeFullData extends Command
 {
     protected $signature = 'compare:remont-excel {file}';
     protected $description = 'Сравнить данные Excel-файла с RemontBrigadeFullData';
+
+    private $total = 0;
+    private $matched = 0;
+    private $notFound = 0;
+    private $diffs = 0;
 
     public function handle()
     {
@@ -21,67 +27,125 @@ class CompareExcelWithRemontBrigadeFullData extends Command
             return 1;
         }
 
-        // Используем встроенный SimpleXLSX импорт
-        $rows = Excel::toArray(new \stdClass(), $file)[0];
-        $header = array_shift($rows); // Пропустить заголовок
-        $total = count($rows);
-        $matched = 0;
-        $notFound = 0;
-        $diffs = 0;
+        $this->info("Чтение файла: $file");
 
-        foreach ($rows as $i => $row) {
-            // Индексы колонок по вашему скрину:
-            // 0: Р/с, 1: Бр., 2: НГДУ, 3: Месяц, 4: №, 5: ТК, 6: МК/ККСС, 7: УНВ час, 8: Факт час, 9: Басы, 10: Соны
-            $well_number = trim($row[4]);
-            $ngdu = trim($row[2]);
-            $tk = trim($row[5]);
-            $mk_kkss = trim($row[6]);
-            $unv_hours = trim($row[7]);
-            $actual_hours = trim($row[8]);
-            $start_date = $this->parseExcelDate($row[9]);
-            $end_date = $this->parseExcelDate($row[10]);
+        // Используем PhpSpreadsheet с опцией чтения вычисленных значений формул
+        $inputFileType = IOFactory::identify($file);
+        $reader = IOFactory::createReader($inputFileType);
+        $reader->setReadDataOnly(false); // Нужно false чтобы формулы вычислялись
 
-            $query = RemontBrigadeFullData::where('well_number', $well_number)
-                ->where('ngdu', $ngdu)
-                ->where('tk', $tk)
-                ->where('mk_kkss', $mk_kkss)
-                ->whereDate('start_date', $start_date)
-                ->whereDate('end_date', $end_date);
-            $db = $query->first();
+        // Читаем файл чанками для экономии памяти
+        $chunkFilter = new ChunkReadFilter();
 
-            if (!$db) {
-                $notFound++;
-                $this->warn("[{$i}] Не найдено в БД: скважина $well_number, НГДУ $ngdu, ТК $tk, МК/ККСС $mk_kkss, даты $start_date - $end_date");
-                continue;
+        $chunkSize = 100;
+        $startRow = 2; // Пропускаем заголовок
+        $rowIndex = 0;
+        $hasMoreRows = true;
+
+        while ($hasMoreRows) {
+            $chunkFilter->setRows($startRow, $chunkSize);
+            $reader->setReadFilter($chunkFilter);
+
+            $spreadsheet = $reader->load($file);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $highestRow = $worksheet->getHighestRow();
+
+            if ($startRow > $highestRow) {
+                $hasMoreRows = false;
+                $spreadsheet->disconnectWorksheets();
+                unset($spreadsheet);
+                break;
             }
 
-            $matched++;
-            $diff = [];
-            if ((float)$db->unv_hours != (float)$unv_hours) {
-                $diff[] = "УНВ час: файл=$unv_hours, БД={$db->unv_hours}";
+            for ($row = $startRow; $row < $startRow + $chunkSize && $row <= $highestRow; $row++) {
+                $rowData = [];
+                $highestColumn = $worksheet->getHighestColumn();
+                $highestColumnIndex = Coordinate::columnIndexFromString($highestColumn);
+
+                for ($col = 1; $col <= $highestColumnIndex; $col++) {
+                    $cell = $worksheet->getCellByColumnAndRow($col, $row);
+                    // Получаем вычисленное значение (для формул)
+                    $rowData[] = $cell->getCalculatedValue();
+                }
+
+                // Пропускаем пустые строки
+                if (empty(array_filter($rowData))) {
+                    continue;
+                }
+
+                $this->processRow($rowIndex, $rowData);
+                $rowIndex++;
             }
-            if ((float)$db->actual_hours != (float)$actual_hours) {
-                $diff[] = "Факт час: файл=$actual_hours, БД={$db->actual_hours}";
-            }
-            if ($diff) {
-                $diffs++;
-                $this->line("[{$i}] Отличия: скважина $well_number: " . implode('; ', $diff));
-            }
+
+            // Освобождаем память после каждого чанка
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+
+            $startRow += $chunkSize;
         }
 
-        $this->info("Всего строк: $total");
-        $this->info("Совпадений: $matched");
-        $this->info("Не найдено в БД: $notFound");
-        $this->info("Строк с отличиями: $diffs");
+        $this->info("Всего строк: {$this->total}");
+        $this->info("Совпадений: {$this->matched}");
+        $this->info("Не найдено в БД: {$this->notFound}");
+        $this->info("Строк с отличиями: {$this->diffs}");
         return 0;
+    }
+
+    public function processRow(int $i, array $row): void
+    {
+        // Индексы колонок:
+        // 0: Р/с, 1: Бр., 2: НГДУ, 3: Месяц, 4: №, 5: ТК, 6: МК/ККСС, 7: УНВ час, 8: Факт час, 9: Басы, 10: Соны
+        $well_number = isset($row[4]) ? trim((string)$row[4]) : '';
+        $ngdu = isset($row[2]) ? trim((string)$row[2]) : '';
+        $unv_hours = isset($row[7]) ? trim((string)$row[7]) : '';
+        $start_date = isset($row[9]) ? $this->parseExcelDate($row[9]) : null;
+
+        if (empty($well_number) || empty($ngdu) || empty($start_date)) {
+            return;
+        }
+
+        $this->total++;
+
+        $db = RemontBrigadeFullData::where('well_number', $well_number)
+            ->whereLike('ngdu' ,'%'.$ngdu.'%')
+            ->whereDate('start_date', $start_date)
+            ->first();
+
+        if (!$db) {
+            $this->notFound++;
+            $this->warn("[{$i}] Не найдено в БД: скважина $well_number, НГДУ $ngdu, дата $start_date");
+            return;
+        }
+
+        $this->matched++;
+        if ((float)$db->unv_hours != (float)$unv_hours) {
+            $this->diffs++;
+            $oldValue = $db->unv_hours;
+
+            // Обновляем данные в БД
+            $db->unv_hours = (float)$unv_hours;
+            $db->save();
+
+            $this->info("Обновлено [ID={$db->id}]: скважина $well_number, НГДУ $ngdu, дата $start_date — УНВ было = $oldValue, стало = $unv_hours");
+        }
     }
 
     private function parseExcelDate($value)
     {
-        // Если дата в формате Excel (число), преобразуем
-        if (is_numeric($value)) {
-            return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value))->toDateString();
+        if (empty($value)) {
+            return null;
         }
+
+        // PhpSpreadsheet может вернуть DateTimeInterface для дат
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->toDateString();
+        }
+
+        // Если дата в формате Excel (число), преобразуем через PhpSpreadsheet
+        if (is_numeric($value)) {
+            return Carbon::instance(Date::excelToDateTimeObject($value))->toDateString();
+        }
+
         // Если строка, пробуем парсить
         try {
             return Carbon::parse($value)->toDateString();
