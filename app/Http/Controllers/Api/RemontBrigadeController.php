@@ -354,14 +354,14 @@ class RemontBrigadeController extends Controller
                 foreach ($months as $monthYear) {
                     $count = $brigadeUnvHoursCount[$monthYear];
                     $brigadeMonthlyData[$monthYear]['unv_hours'] = $count > 0
-                        ? (int) round($brigadeUnvHoursRaw[$monthYear] / $count)
+                        ? round($brigadeUnvHoursRaw[$monthYear] / $count)
                         : 0;
                     $brigadeMonthlyData[$monthYear]['downtime'] = $brigadeDowntime[$monthYear];
                 }
 
                 // Вычисляем годовое среднее unv_hours для бригады и добавляем в общий массив
                 if ($brigadeYearUnvHoursCount > 0) {
-                    $allBrigadeYearUnvHoursAverages[] = (int) round($brigadeYearUnvHoursRaw / $brigadeYearUnvHoursCount);
+                    $allBrigadeYearUnvHoursAverages[] = round($brigadeYearUnvHoursRaw / $brigadeYearUnvHoursCount);
                 }
 
                 $brigadesData[] = [
@@ -375,12 +375,12 @@ class RemontBrigadeController extends Controller
             foreach ($months as $monthYear) {
                 $countHours = $workshopUnvHoursCount[$monthYear];
                 $workshopMonthlyData[$monthYear]['unv_hours'] = $countHours > 0
-                    ? (int) round($workshopUnvHoursRaw[$monthYear] / $countHours)
+                    ? round($workshopUnvHoursRaw[$monthYear] / $countHours)
                     : 0;
 
                 $countPlan = $workshopUnvPlanCount[$monthYear];
                 $workshopMonthlyData[$monthYear]['unv_plan'] = $countPlan > 0
-                    ? (int) round($workshopUnvPlanRaw[$monthYear] / $countPlan)
+                    ? round($workshopUnvPlanRaw[$monthYear] / $countPlan)
                     : 0;
 
                 $workshopMonthlyData[$monthYear]['downtime'] = $workshopDowntime[$monthYear];
@@ -400,10 +400,10 @@ class RemontBrigadeController extends Controller
                 'plan' => $workshopYearPlan,
                 'fact' => $workshopYearFact,
                 'unv_plan' => $workshopYearUnvPlanCount > 0
-                    ? (int) round($workshopYearUnvPlanRaw / $workshopYearUnvPlanCount)
+                    ? round($workshopYearUnvPlanRaw / $workshopYearUnvPlanCount)
                     : 0,
                 'unv_hours' => $workshopYearUnvHoursCount > 0
-                    ? (int) round($workshopYearUnvHoursRaw / $workshopYearUnvHoursCount)
+                    ? round($workshopYearUnvHoursRaw / $workshopYearUnvHoursCount)
                     : 0,
                 'downtime' => $workshopYearDowntime,
             ];
@@ -413,12 +413,12 @@ class RemontBrigadeController extends Controller
         foreach ($months as $monthYear) {
             $countHours = $totalUnvHoursCount[$monthYear];
             $totalData[$monthYear]['unv_hours'] = $countHours > 0
-                ? (int) round($totalUnvHoursRaw[$monthYear] / $countHours)
+                ? round($totalUnvHoursRaw[$monthYear] / $countHours)
                 : 0;
 
             $countPlan = $totalUnvPlanCount[$monthYear];
             $totalData[$monthYear]['unv_plan'] = $countPlan > 0
-                ? (int) round($totalUnvPlanRaw[$monthYear] / $countPlan)
+                ? round($totalUnvPlanRaw[$monthYear] / $countPlan)
                 : 0;
 
             $totalData[$monthYear]['downtime'] = $totalDowntime[$monthYear];
@@ -437,10 +437,10 @@ class RemontBrigadeController extends Controller
                         'plan' => array_sum(array_column($totalData, 'plan')),
                         'fact' => array_sum(array_column($totalData, 'fact')),
                         'unv_plan' => array_sum($totalUnvPlanCount) > 0
-                            ? (int) round(array_sum($totalUnvPlanRaw) / array_sum($totalUnvPlanCount))
+                            ? round(array_sum($totalUnvPlanRaw) / array_sum($totalUnvPlanCount))
                             : 0,
                         'unv_hours' => array_sum($totalUnvHoursCount) > 0
-                            ? (int) round(array_sum($totalUnvHoursRaw) / array_sum($totalUnvHoursCount))
+                            ? round(array_sum($totalUnvHoursRaw) / array_sum($totalUnvHoursCount))
                             : 0,
                         'downtime' => array_sum(array_column($totalData, 'downtime')),
                     ],
