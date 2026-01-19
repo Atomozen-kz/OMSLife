@@ -339,7 +339,8 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('platform.organization-signers', 'Подписанты'),
 
             ItemPermission::group('Отдел кадров')
-                ->addPermission('platform.spravka-sotrudnikam', 'Справка с места работы'),
+                ->addPermission('platform.spravka-sotrudnikam', 'Справка с места работы')
+                ->addPermission('platform.spravka-sotrudnikam-email', 'Получать письмо о новых заявках'),
 //
 //            ItemPermission::group('Карта промзоны')
 //                ->addPermission('platform.promzona-map', 'Карта промзоны'),

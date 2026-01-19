@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\SpravkaSotrudnikam;
-use App\Models\OrganizationSigner;
 use App\Models\User;
 use App\Notifications\NewCertificateRequestNotification;
 use Illuminate\Bus\Queueable;
@@ -12,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class ProcessCertificateRequestJob implements ShouldQueue
 {
@@ -45,28 +45,31 @@ class ProcessCertificateRequestJob implements ShouldQueue
             $certificate = SpravkaSotrudnikam::with(['organization', 'sotrudnik'])
                 ->findOrFail($this->certificate->id);
 
-            // Найти активного подписанта
-            $signer = OrganizationSigner::where('organization_id', $certificate->organization_id)
-                ->where('status', 1)
-                ->first();
+            // Найти пользователей с permission 'platform.spravka-sotrudnikam-email'
+            $permissionSlug = 'platform.spravka-sotrudnikam-email';
 
-            if (!$signer) {
-                Log::error('Подписант не найден для организации ID: ' . $certificate->organization_id);
+            $users = User::where(function ($query) use ($permissionSlug) {
+                // Поиск по прямым permissions пользователя
+                $query->whereRaw("JSON_EXTRACT(permissions, '$.\"$permissionSlug\"') = '1'")
+                    // Поиск по permissions через роли
+                    ->orWhereHas('roles', function ($roleQuery) use ($permissionSlug) {
+                        $roleQuery->whereRaw("JSON_EXTRACT(permissions, '$.\"$permissionSlug\"') = '1'");
+                    });
+            })->get();
+
+            // Собираем email-адреса
+            $emails = $users->pluck('email')->filter()->unique()->values()->toArray();
+
+            if (empty($emails)) {
+                Log::warning('Не найдены пользователи с правом получать письма о новых заявках на справки');
                 return;
             }
 
-            // Обновить поле id_signer
-            $certificate->update(['id_signer' => $signer->id]);
+            // Отправить одно уведомление всем получателям
+            Notification::route('mail', $emails)
+                ->notify(new NewCertificateRequestNotification($certificate));
 
-            // Найти пользователя-подписанта
-            $user = User::find($signer->user_id);
-            if (!$user || !$user->email) {
-                Log::error('Email не найден для подписанта ID: ' . $signer->id);
-                return;
-            }
-
-            // Отправить уведомление
-            $user->notify(new NewCertificateRequestNotification($certificate));
+            Log::info('Уведомление о новой заявке на справку отправлено на: ' . implode(', ', $emails));
         } catch (\Exception $e) {
             Log::error('Ошибка при обработке заявки на справку: ' . $e->getMessage());
         }
