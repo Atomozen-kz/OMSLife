@@ -84,7 +84,7 @@
     <div class="content">
         <div><textarea id="text_kz_textarea" spellcheck="false" oninput="updatePreview()" style="width: 100%; min-height: 150px; border: none; font-family: 'DejaVu Sans', sans-serif; font-size: 16px; line-height: 1.2;  outline: none; background: #00000012; overflow: hidden;">{{$sotrudnik->full_name}} берілді.
 Себебі ол "ӨзенМұнайСервис" жауапкершілігі шектеулі серіктестігінде  {{$sotrudnik->position->name_kz}} болып жұмыс жасайды.
-Анықтама талап етілген жеріне берілді берілді.</textarea></div>
+Анықтама талап етілген жеріне берілді.</textarea></div>
     </div>
 
     <div class="signatory">
