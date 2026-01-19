@@ -32,7 +32,7 @@ class NewCertificateRequestNotification extends Notification implements ShouldQu
             ->line('Поступила новая заявка на подписание справки с места работы.')
             ->line('ФИО: ' . $this->certificate->sotrudnik->fio)
             ->line('ИНН: ' . $this->certificate->iin)
-            ->line('ID Организации: ' . $this->certificate->organization->name_ru)
+//            ->line('ID Организации: ' . $this->certificate->organization->name_ru)
             ->action('Просмотреть заявку', url('/admin/pdf-preview/' . $this->certificate->id))
             ->line('Спасибо за использование нашей системы!');
     }
