@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Laravel\Sanctum\HasApiTokens;
 use Orchid\Filters\Filterable;
 use Orchid\Filters\Types\Where;
@@ -17,6 +18,7 @@ class Sotrudniki extends Authenticatable
     use AsSource;
     use Filterable;
     use HasApiTokens;
+    use SoftDeletes;
 
     protected $table = 'sotrudniki';
 
