@@ -24,51 +24,18 @@ use Orchid\Support\Facades\Toast;
 class RemontBrigadesPlanScreen extends Screen
 {
     /**
-     * ID текущего цеха (для просмотра бригад внутри)
-     */
-    protected ?int $workshopId = null;
-    protected ?RemontBrigade $currentWorkshop = null;
-
-    /**
      * Fetch data to be displayed on the screen.
      *
      * @return array
      */
-    public function query(Request $request): iterable
+    public function query(): iterable
     {
-        // Получаем workshop_id из query параметров или из тела запроса (для async модальных окон)
-        $workshopIdFromQuery = $request->get('workshop_id');
-        $workshopIdFromBody = $request->input('workshop_id');
-
-        $this->workshopId = $workshopIdFromQuery ? (int) $workshopIdFromQuery
-            : ($workshopIdFromBody ? (int) $workshopIdFromBody : null);
-
-        if ($this->workshopId) {
-            $this->currentWorkshop = RemontBrigade::find($this->workshopId);
-        }
-
-        // Если мы внутри цеха - показываем бригады с их планами
-        if ($this->workshopId) {
-            $brigades = RemontBrigade::where('parent_id', $this->workshopId)
-                ->with(['plans' => function ($query) {
-                    $query->orderBy('month', 'desc');
-                }, 'plans.fullData'])
-                ->get();
-
-            return [
-                'brigades' => $brigades,
-                'workshopId' => $this->workshopId,
-                'workshops' => RemontBrigade::workshops()->get(),
-            ];
-        }
-
-        // Иначе показываем цехи
+        // Показываем цехи
         $workshops = RemontBrigade::workshops()
             ->withCount('children')
             ->get();
 
         // Агрегация данных по месяцам для таблицы статистики
-        // Используем RemontBrigadesPlan и считаем факт как count(fullData)
         $monthlyStats = RemontBrigadesPlan::select(
                 'month',
                 DB::raw('SUM(plan) as total_plan')
@@ -77,11 +44,9 @@ class RemontBrigadesPlanScreen extends Screen
             ->orderBy('month', 'desc')
             ->get()
             ->map(function ($item) {
-                // Считаем факт как количество записей fullData для всех планов этого месяца
                 $planIds = RemontBrigadesPlan::where('month', $item->month)->pluck('id');
                 $totalFact = RemontBrigadeFullData::whereIn('plan_id', $planIds)->count();
 
-                // Считаем средний УНВ из fullData для этого месяца
                 $allFullDataForMonth = RemontBrigadeFullData::whereIn('plan_id', $planIds);
                 $avgUnv = $allFullDataForMonth->count() > 0
                     ? round($allFullDataForMonth->avg('unv_hours'), 1)
@@ -94,7 +59,7 @@ class RemontBrigadesPlanScreen extends Screen
                 return $item;
             });
 
-        // Статистика по бригадам (все бригады, у которых parent_id не null)
+        // Статистика по бригадам
         $brigadeStats = RemontBrigade::whereNotNull('parent_id')
             ->with(['plans.fullData', 'parent'])
             ->get()
@@ -104,7 +69,6 @@ class RemontBrigadesPlanScreen extends Screen
                     return $plan->fullData->count();
                 });
 
-                // Считаем средний УНВ (unv_hours) из fullData
                 $allFullData = $brigade->plans->flatMap(function ($plan) {
                     return $plan->fullData;
                 });
@@ -126,7 +90,6 @@ class RemontBrigadesPlanScreen extends Screen
 
         return [
             'workshops' => $workshops,
-            'workshopId' => null,
             'monthlyStats' => $monthlyStats,
             'brigadeStats' => $brigadeStats,
         ];
@@ -139,9 +102,6 @@ class RemontBrigadesPlanScreen extends Screen
      */
     public function name(): ?string
     {
-        if ($this->currentWorkshop) {
-            return 'Бригады цеха: ' . $this->currentWorkshop->name;
-        }
         return 'Планы ремонта скважин (V2)';
     }
 
@@ -150,9 +110,6 @@ class RemontBrigadesPlanScreen extends Screen
      */
     public function description(): ?string
     {
-        if ($this->workshopId) {
-            return 'Управление планами и записями ремонта бригад';
-        }
         return 'Управление планами ремонта скважин по цехам и бригадам';
     }
 
@@ -163,21 +120,17 @@ class RemontBrigadesPlanScreen extends Screen
      */
     public function commandBar(): iterable
     {
-        $buttons = [];
+        return [
+            ModalToggle::make('Добавить цех')
+                ->modal('createWorkshopModal')
+                ->method('createWorkshop')
+                ->icon('plus'),
 
-        if ($this->workshopId) {
-            $buttons[] = Link::make('← Назад к цехам')
-                ->route('platform.remont-plans')
-                ->icon('arrow-left');
-
-            $buttons[] = ModalToggle::make('Добавить план')
-                ->modal('createPlanModal')
-                ->method('createPlan')
-                ->parameters(['workshop_id' => $this->workshopId])
-                ->icon('plus');
-        }
-
-        return $buttons;
+            ModalToggle::make('Добавить бригаду')
+                ->modal('createBrigadeModal')
+                ->method('createBrigade')
+                ->icon('plus'),
+        ];
     }
 
     /**
@@ -187,17 +140,11 @@ class RemontBrigadesPlanScreen extends Screen
      */
     public function layout(): iterable
     {
-        // Если мы внутри цеха - показываем бригады с планами
-        if ($this->workshopId) {
-            return $this->brigadesLayout();
-        }
-
-        // Иначе показываем цехи + таблицу месяцев + статистику по бригадам
         return array_merge(
             $this->workshopsLayout(),
             $this->monthsTableLayout(),
             $this->brigadeStatsTableLayout(),
-            $this->brigadesModals()
+            $this->modalsLayout()
         );
     }
 
@@ -211,11 +158,28 @@ class RemontBrigadesPlanScreen extends Screen
                 TD::make('name', 'Название цеха')
                     ->render(function (RemontBrigade $workshop) {
                         return Link::make($workshop->name)
-                            ->route('platform.remont-plans', ['workshop_id' => $workshop->id]);
+                            ->route('platform.remont-plans.workshop', ['workshop' => $workshop->id]);
                     }),
 
                 TD::make('children_count', 'Кол-во бригад')
                     ->alignCenter(),
+
+                TD::make('', 'Действия')
+                    ->alignCenter()
+                    ->render(function (RemontBrigade $workshop) {
+                        return \Orchid\Screen\Fields\Group::make([
+                            ModalToggle::make('')
+                                ->modal('editWorkshopModal')
+                                ->method('updateWorkshop')
+                                ->icon('pencil')
+                                ->asyncParameters(['workshop' => $workshop->id]),
+
+//                            Button::make('')
+//                                ->icon('trash')
+//                                ->confirm('Вы уверены, что хотите удалить этот цех? Все бригады и их планы также будут удалены!')
+//                                ->method('deleteWorkshop', ['id' => $workshop->id]),
+                        ]);
+                    }),
             ]),
         ];
     }
@@ -232,7 +196,18 @@ class RemontBrigadesPlanScreen extends Screen
             ]),
 
             Layout::table('monthlyStats', [
-                TD::make('month_name_ru', 'Месяц'),
+                TD::make('month_name_ru', 'Месяц')
+                    ->render(function ($item) {
+                        $month = $item->month ?? null;
+                        $monthName = $item->month_name_ru ?? '-';
+
+                        if (empty($month) || !preg_match('/^\d{4}-\d{2}$/', $month)) {
+                            return $monthName;
+                        }
+
+                        return Link::make($monthName)
+                            ->route('platform.remont-plans.month', ['month' => $month]);
+                    }),
 
                 TD::make('total_plan', 'План')
                     ->alignCenter(),
@@ -299,172 +274,66 @@ class RemontBrigadesPlanScreen extends Screen
                         $avgUnv = $item->get('avg_unv');
                         return $avgUnv > 0 ? $avgUnv : '-';
                     }),
+
+//                TD::make('', 'Действия')
+//                    ->alignCenter()
+//                    ->render(function (Repository $item) {
+//                        return \Orchid\Screen\Fields\Group::make([
+//                            ModalToggle::make('')
+//                                ->modal('editBrigadeModal')
+//                                ->method('updateBrigade')
+//                                ->icon('pencil')
+//                                ->asyncParameters(['brigade' => $item->get('id')]),
+//
+//                            Button::make('')
+//                                ->icon('trash')
+//                                ->confirm('Вы уверены, что хотите удалить эту бригаду? Все планы и записи также будут удалены!')
+//                                ->method('deleteBrigade', ['id' => $item->get('id')]),
+//                        ]);
+//                    }),
             ]),
         ];
     }
 
     /**
-     * Layout для отображения бригад с планами
+     * Модальные окна
      */
-    protected function brigadesLayout(): array
+    protected function modalsLayout(): array
     {
         return [
-            Layout::table('brigades', [
-                TD::make('name', 'Название бригады'),
+            // Модальное окно для управления планами бригады
+            Layout::modal('managePlansModal', [
+                Layout::rows([
+                    \Orchid\Screen\Fields\Label::make('brigade_name')
+                        ->title('Бригада'),
+                ]),
+                Layout::table('brigade_plans', [
+                    TD::make('month', 'Месяц')
+                        ->render(function ($plan) {
+                            return RemontBrigadesPlan::formatMonthYearRu($plan->month);
+                        }),
 
-                TD::make('', 'Планы')
-                    ->render(function (RemontBrigade $brigade) {
-                        $plansCount = $brigade->plans->count();
-                        $totalPlan = $brigade->plans->sum('plan');
-                        $totalFact = $brigade->plans->sum(function ($plan) {
-                            return $plan->fullData->count();
-                        });
-                        return "Планов: {$plansCount}, План: {$totalPlan}, Факт: {$totalFact}";
-                    }),
+                    TD::make('plan', 'План')
+                        ->alignCenter(),
 
-                TD::make('', 'Действия')
-                    ->alignCenter()
-                    ->render(function (RemontBrigade $brigade) {
-                        return ModalToggle::make('Управление планами')
-                            ->modal('managePlansModal')
-                            ->icon('list')
-                            ->asyncParameters([
-                                'brigade' => $brigade->id,
-                                'workshop_id' => $brigade->parent_id,
+                    TD::make('unv_plan', 'УНВ План')
+                        ->alignCenter(),
+
+                    TD::make('', 'Действия')
+                        ->alignCenter()
+                        ->render(function ($plan) {
+                            return \Orchid\Screen\Fields\Group::make([
+                                ModalToggle::make('')
+                                    ->modal('editPlanModal')
+                                    ->method('updatePlan')
+                                    ->icon('pencil')
+                                    ->asyncParameters(['plan' => $plan->id]),
+
+                                Button::make('')
+                                    ->icon('trash')
+                                    ->confirm('Вы уверены, что хотите удалить этот план?')
+                                    ->method('deletePlan', ['plan' => $plan->id]),
                             ]);
-                    }),
-            ]),
-
-            // Модальное окно для создания плана
-            Layout::modal('createPlanModal', [
-                Layout::rows([
-                    Select::make('brigade_id')
-                        ->title('Бригада')
-                        ->fromModel(RemontBrigade::where('parent_id', $this->workshopId), 'name')
-                        ->required(),
-
-                    Input::make('month')
-                        ->title('Месяц и год')
-                        ->type('month')
-                        ->help('Формат: YYYY-MM')
-                        ->required(),
-
-                    Input::make('plan')
-                        ->title('План (кол-во скважин)')
-                        ->type('number')
-                        ->value(0)
-                        ->required(),
-
-                    Input::make('unv_plan')
-                        ->title('УНВ План (часы)')
-                        ->type('number')
-                        ->value(0),
-                ]),
-            ])
-                ->title('Создать новый план')
-                ->applyButton('Создать')
-                ->closeButton('Отмена'),
-
-            // Модальное окно для управления планами бригады
-            Layout::modal('managePlansModal', [
-                Layout::rows([
-                    \Orchid\Screen\Fields\Label::make('brigade_name')
-                        ->title('Бригада'),
-                ]),
-                Layout::table('brigade_plans', [
-                    TD::make('month', 'Месяц')
-                        ->render(function ($plan) {
-                            return RemontBrigadesPlan::formatMonthYearRu($plan->month);
-                        }),
-
-                    TD::make('plan', 'План')
-                        ->alignCenter(),
-
-                    TD::make('', 'Факт')
-                        ->alignCenter()
-                        ->render(function ($plan) {
-                            return $plan->fullData->count();
-                        }),
-
-                    TD::make('', 'Действия')
-                        ->alignCenter()
-                        ->render(function ($plan) {
-                            return Link::make('Детали')
-                                ->route('platform.remont-plans.detail', [
-                                    'month' => $plan->month,
-                                    'brigade' => $plan->brigade_id,
-                                ])
-                                ->icon('eye');
-                        }),
-                ]),
-            ])
-                ->title('Планы бригады')
-                ->withoutApplyButton()
-                ->closeButton('Закрыть')
-                ->async('asyncGetBrigadePlans')
-                ->size(Modal::SIZE_LG),
-
-            // Модальное окно дл�� редактирования плана
-            Layout::modal('editPlanModal', [
-                Layout::rows([
-                    Input::make('plan_id')->type('hidden'),
-
-                    \Orchid\Screen\Fields\Label::make('plan_info')
-                        ->title('План'),
-
-                    Input::make('plan')
-                        ->title('План (кол-во скважин)')
-                        ->type('number')
-                        ->required(),
-
-                    Input::make('unv_plan')
-                        ->title('УНВ План (часы)')
-                        ->type('number'),
-                ]),
-            ])
-                ->title('Редактировать план')
-                ->applyButton('Сохранить')
-                ->closeButton('Отмена')
-                ->async('asyncGetPlan'),
-        ];
-    }
-
-    /**
-     * Модальные окна для бригад (для async запросов когда workshop_id не определён)
-     */
-    protected function brigadesModals(): array
-    {
-        return [
-            // Модальное окно для управления планами бригады
-            Layout::modal('managePlansModal', [
-                Layout::rows([
-                    \Orchid\Screen\Fields\Label::make('brigade_name')
-                        ->title('Бригада'),
-                ]),
-                Layout::table('brigade_plans', [
-                    TD::make('month', 'Месяц')
-                        ->render(function ($plan) {
-                            return RemontBrigadesPlan::formatMonthYearRu($plan->month);
-                        }),
-
-                    TD::make('plan', 'План')
-                        ->alignCenter(),
-
-                    TD::make('', 'Факт')
-                        ->alignCenter()
-                        ->render(function ($plan) {
-                            return $plan->fullData->count();
-                        }),
-
-                    TD::make('', 'Действия')
-                        ->alignCenter()
-                        ->render(function ($plan) {
-                            return Link::make('Детали')
-                                ->route('platform.remont-plans.detail', [
-                                    'month' => $plan->month,
-                                    'brigade' => $plan->brigade_id,
-                                ])
-                                ->icon('eye');
                         }),
                 ]),
             ])
@@ -496,6 +365,76 @@ class RemontBrigadesPlanScreen extends Screen
                 ->applyButton('Сохранить')
                 ->closeButton('Отмена')
                 ->async('asyncGetPlan'),
+
+            // Модальное окно для создания цеха
+            Layout::modal('createWorkshopModal', [
+                Layout::rows([
+                    Input::make('workshop_name')
+                        ->title('Название цеха')
+                        ->required()
+                        ->placeholder('Введите название цеха'),
+                ]),
+            ])
+                ->title('Создать новый цех')
+                ->applyButton('Создать')
+                ->closeButton('Отмена'),
+
+            // Модальное окно для редактирования цеха
+            Layout::modal('editWorkshopModal', [
+                Layout::rows([
+                    Input::make('workshop.id')->type('hidden'),
+
+                    Input::make('workshop.name')
+                        ->title('Название цеха')
+                        ->required()
+                        ->placeholder('Введите название цеха'),
+                ]),
+            ])
+                ->title('Редактировать цех')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена')
+                ->async('asyncGetWorkshop'),
+
+            // Модальное окно для создания бригады
+            Layout::modal('createBrigadeModal', [
+                Layout::rows([
+                    Select::make('brigade_parent_id')
+                        ->title('Цех')
+                        ->fromModel(RemontBrigade::whereNull('parent_id'), 'name')
+                        ->required()
+                        ->help('Выберите цех для бригады'),
+
+                    Input::make('brigade_name')
+                        ->title('Название бригады')
+                        ->required()
+                        ->placeholder('Введите название бригады'),
+                ]),
+            ])
+                ->title('Создать новую бригаду')
+                ->applyButton('Создать')
+                ->closeButton('Отмена'),
+
+            // Модальное окно для редактирования бригады
+            Layout::modal('editBrigadeModal', [
+                Layout::rows([
+                    Input::make('brigade.id')->type('hidden'),
+
+                    Select::make('brigade.parent_id')
+                        ->title('Цех')
+                        ->fromModel(RemontBrigade::whereNull('parent_id'), 'name')
+                        ->required()
+                        ->help('Выберите цех для бригады'),
+
+                    Input::make('brigade.name')
+                        ->title('Название бригады')
+                        ->required()
+                        ->placeholder('Введите название бригады'),
+                ]),
+            ])
+                ->title('Редактировать бригаду')
+                ->applyButton('Сохранить')
+                ->closeButton('Отмена')
+                ->async('asyncGetBrigade'),
         ];
     }
 
@@ -517,6 +456,10 @@ class RemontBrigadesPlanScreen extends Screen
         return [
             'brigade_name' => $brigade->name,
             'brigade_plans' => $plans,
+            'brigades' => collect(),
+            'workshops' => collect(),
+            'monthlyStats' => collect(),
+            'brigadeStats' => collect(),
         ];
     }
 
@@ -530,6 +473,11 @@ class RemontBrigadesPlanScreen extends Screen
             'plan_info' => $plan->brigade->name . ' - ' . RemontBrigadesPlan::formatMonthYearRu($plan->month),
             'plan' => $plan->plan,
             'unv_plan' => $plan->unv_plan,
+            'brigades' => collect(),
+            'brigade_plans' => collect(),
+            'workshops' => collect(),
+            'monthlyStats' => collect(),
+            'brigadeStats' => collect(),
         ];
     }
 
@@ -588,13 +536,171 @@ class RemontBrigadesPlanScreen extends Screen
     /**
      * Удалить план
      */
-    public function deletePlan(RemontBrigadesPlan $plan): void
+    public function deletePlan(Request $request): void
     {
+        $planId = $request->input('plan');
+        $plan = RemontBrigadesPlan::findOrFail($planId);
+
         $plan->fullData()->delete();
         $plan->downtimes()->delete();
         $plan->delete();
 
         Toast::info('План успешно удален');
+    }
+
+    /**
+     * Асинхронно получить данные цеха для редактирования
+     */
+    public function asyncGetWorkshop(RemontBrigade $workshop): array
+    {
+        return [
+            'workshop' => [
+                'id' => $workshop->id,
+                'name' => $workshop->name,
+            ],
+            'workshops' => collect(),
+            'monthlyStats' => collect(),
+            'brigadeStats' => collect(),
+        ];
+    }
+
+    /**
+     * Асинхронно получить данные бригады для редактирования (на странице цехов)
+     */
+    public function asyncGetBrigade(RemontBrigade $brigade): array
+    {
+        return [
+            'brigade' => [
+                'id' => $brigade->id,
+                'name' => $brigade->name,
+                'parent_id' => $brigade->parent_id,
+            ],
+            'brigades' => collect(),
+            'brigade_plans' => collect(),
+            'workshops' => collect(),
+            'monthlyStats' => collect(),
+            'brigadeStats' => collect(),
+        ];
+    }
+
+
+    /**
+     * Создать новый цех
+     */
+    public function createWorkshop(Request $request): void
+    {
+        $request->validate([
+            'workshop_name' => 'required|string|max:255',
+        ]);
+
+        RemontBrigade::create([
+            'name' => $request->input('workshop_name'),
+            'parent_id' => null,
+        ]);
+
+        Toast::info('Цех успешно создан');
+    }
+
+    /**
+     * Обновить цех
+     */
+    public function updateWorkshop(Request $request): void
+    {
+        $request->validate([
+            'workshop.id' => 'required|exists:remont_brigades,id',
+            'workshop.name' => 'required|string|max:255',
+        ]);
+
+        $workshop = RemontBrigade::findOrFail($request->input('workshop.id'));
+        $workshop->update([
+            'name' => $request->input('workshop.name'),
+        ]);
+
+        Toast::info('Цех успешно обновлен');
+    }
+
+    /**
+     * Удалить цех
+     */
+    public function deleteWorkshop(Request $request): void
+    {
+        $id = $request->input('id');
+        $workshop = RemontBrigade::findOrFail($id);
+
+        // Удаляем все связанные данные: бригады -> планы -> fullData, downtimes
+        foreach ($workshop->children as $brigade) {
+            foreach ($brigade->plans as $plan) {
+                $plan->fullData()->delete();
+                $plan->downtimes()->delete();
+            }
+            $brigade->plans()->delete();
+        }
+        $workshop->children()->delete();
+        $workshop->delete();
+
+        Toast::info('Цех успешно удален');
+    }
+
+    /**
+     * Создать новую бригаду
+     */
+    public function createBrigade(Request $request): void
+    {
+        $request->validate([
+            'brigade_parent_id' => 'required|exists:remont_brigades,id',
+            'brigade_name' => 'required|string|max:255',
+        ]);
+
+        RemontBrigade::create([
+            'name' => $request->input('brigade_name'),
+            'parent_id' => $request->input('brigade_parent_id'),
+        ]);
+
+        Toast::info('Бригада успешно создана');
+    }
+
+    /**
+     * Обновить бригаду
+     */
+    public function updateBrigade(Request $request): void
+    {
+        $request->validate([
+            'brigade.id' => 'required|exists:remont_brigades,id',
+            'brigade.name' => 'required|string|max:255',
+            'brigade.parent_id' => 'nullable|exists:remont_brigades,id',
+        ]);
+
+        $brigade = RemontBrigade::findOrFail($request->input('brigade.id'));
+
+        $updateData = ['name' => $request->input('brigade.name')];
+
+        // Обновляем parent_id только если он передан
+        if ($request->has('brigade.parent_id') && $request->input('brigade.parent_id')) {
+            $updateData['parent_id'] = $request->input('brigade.parent_id');
+        }
+
+        $brigade->update($updateData);
+
+        Toast::info('Бригада успешно обновлена');
+    }
+
+    /**
+     * Удалить бригаду
+     */
+    public function deleteBrigade(Request $request): void
+    {
+        $id = $request->input('id');
+        $brigade = RemontBrigade::findOrFail($id);
+
+        // Удаляем все связанные данные: планы -> fullData, downtimes
+        foreach ($brigade->plans as $plan) {
+            $plan->fullData()->delete();
+            $plan->downtimes()->delete();
+        }
+        $brigade->plans()->delete();
+        $brigade->delete();
+
+        Toast::info('Бригада успешно удалена');
     }
 }
 
