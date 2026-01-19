@@ -126,6 +126,7 @@ Route::middleware('auth:custom')->group(function () {
     Route::post('/faqs', [FaqController::class, 'getFaqs']);
 
     Route::post('/safety-memos', [\App\Http\Controllers\mobile\SafetyMemoController::class, 'getSafetyMemos']);
+    Route::post('/safety-memos-v2', [\App\Http\Controllers\mobile\SafetyMemoController::class, 'getSafetyMemosV2']);
 
     Route::prefix('/appeal')->group(function () {
         Route::post('createAppeal', [AppealController::class, 'createAppeal']);

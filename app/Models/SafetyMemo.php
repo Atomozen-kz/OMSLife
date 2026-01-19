@@ -11,9 +11,13 @@ class SafetyMemo extends Model
 {
     use HasFactory, AsSource, Filterable;
 
+    public const TYPE_PDF = 'pdf';
+    public const TYPE_VIDEO = 'video';
+
     protected $fillable = [
         'name',
-        'pdf_file',
+        'url',
+        'type',
         'lang',
         'status',
         'sort',
@@ -22,5 +26,15 @@ class SafetyMemo extends Model
     protected $casts = [
         'status' => 'boolean',
     ];
+
+    public function isPdf(): bool
+    {
+        return $this->type === self::TYPE_PDF;
+    }
+
+    public function isVideo(): bool
+    {
+        return $this->type === self::TYPE_VIDEO;
+    }
 }
 

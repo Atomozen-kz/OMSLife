@@ -39,10 +39,14 @@ class SafetyMemoScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            ModalToggle::make('Добавить памятку')
-                ->modal('memoModal')
-                ->method('saveMemo')
+            ModalToggle::make('Добавить памятку PDF')
+                ->modal('memoPdfModal')
+                ->method('savePdfMemo')
                 ->icon('plus'),
+            ModalToggle::make('Добавить памятку YouTube')
+                ->modal('memoVideoModal')
+                ->method('saveVideoMemo')
+                ->icon('social-youtube'),
         ];
     }
 
@@ -54,7 +58,7 @@ class SafetyMemoScreen extends Screen
                 'на Русском' => $this->returnTabTable('memos_ru'),
             ]),
 
-            Layout::modal('memoModal', [
+            Layout::modal('memoPdfModal', [
                 Layout::rows([
                     Input::make('memo.id')->type('hidden'),
                     Input::make('memo.name')
@@ -81,8 +85,38 @@ class SafetyMemoScreen extends Screen
                         ->sendTrueOrFalse(),
                 ]),
             ])
-                ->title('Добавить/Редактировать памятку')
-                ->async('asyncMemo'),
+                ->title('Добавить/Редактировать памятку PDF')
+                ->async('asyncMemoPdf'),
+
+            Layout::modal('memoVideoModal', [
+                Layout::rows([
+                    Input::make('memo.id')->type('hidden'),
+                    Input::make('memo.name')
+                        ->title('Название')
+                        ->required(),
+                    Input::make('memo.youtube_url')
+                        ->title('Ссылка на YouTube')
+                        ->placeholder('https://www.youtube.com/watch?v=...')
+                        ->required(),
+                    Select::make('memo.lang')
+                        ->title('Язык')
+                        ->options([
+                            'kz' => 'Казахский',
+                            'ru' => 'Русский',
+                        ])
+                        ->required(),
+                    Input::make('memo.sort')
+                        ->title('Сортировка')
+                        ->type('number')
+                        ->value(0),
+                    Switcher::make('memo.status')
+                        ->title('Активный')
+                        ->value(true)
+                        ->sendTrueOrFalse(),
+                ]),
+            ])
+                ->title('Добавить/Редактировать памятку YouTube')
+                ->async('asyncMemoVideo'),
         ];
     }
 
@@ -91,17 +125,27 @@ class SafetyMemoScreen extends Screen
         return Layout::table($target, [
             TD::make('id', 'ID')->width('50px'),
             TD::make('name', 'Название'),
-            TD::make('pdf_file', 'PDF файл')->render(function (SafetyMemo $memo) {
-                return "<a href='/storage/{$memo->pdf_file}' target='_blank'>Скачать PDF</a>";
+            TD::make('type', 'Тип')->render(function (SafetyMemo $memo) {
+                return $memo->isPdf() ? '📄 PDF' : '🎬 YouTube';
+            })->width('100px'),
+            TD::make('url', 'Ссылка')->render(function (SafetyMemo $memo) {
+                if ($memo->isPdf()) {
+                    return "<a href='/storage/{$memo->url}' target='_blank'>Скачать PDF</a>";
+                }
+                return "<a href='{$memo->url}' target='_blank'>Открыть видео</a>";
             }),
             TD::make('sort', 'Сортировка')->width('100px'),
             TD::make('status', 'Статус')->render(function (SafetyMemo $memo) {
                 return $memo->status ? '🟢 Активен' : '🔴 Неактивен';
             })->width('100px'),
             TD::make('actions', 'Действия')->render(function (SafetyMemo $memo) {
+                $modalName = $memo->isPdf() ? 'memoPdfModal' : 'memoVideoModal';
+                $methodName = $memo->isPdf() ? 'savePdfMemo' : 'saveVideoMemo';
+                $asyncMethod = $memo->isPdf() ? 'asyncMemoPdf' : 'asyncMemoVideo';
+
                 return ModalToggle::make('Редактировать')
-                    ->modal('memoModal')
-                    ->method('saveMemo')
+                    ->modal($modalName)
+                    ->method($methodName)
                     ->modalTitle('Редактировать памятку')
                     ->asyncParameters(['memo' => $memo->id])
                     . ' ' .
@@ -114,14 +158,28 @@ class SafetyMemoScreen extends Screen
         ]);
     }
 
-    public function asyncMemo(SafetyMemo $memo): array
+    public function asyncMemoPdf(SafetyMemo $memo): array
     {
         return [
             'memo' => $memo,
         ];
     }
 
-    public function saveMemo(Request $request)
+    public function asyncMemoVideo(SafetyMemo $memo): array
+    {
+        return [
+            'memo' => [
+                'id' => $memo->id,
+                'name' => $memo->name,
+                'youtube_url' => $memo->url,
+                'lang' => $memo->lang,
+                'sort' => $memo->sort,
+                'status' => $memo->status,
+            ],
+        ];
+    }
+
+    public function savePdfMemo(Request $request)
     {
         $data = $request->input('memo');
 
@@ -140,7 +198,7 @@ class SafetyMemoScreen extends Screen
         // Если редактируем и файл не загружен - сохраняем старый
         if (empty($pdfFile) && !empty($data['id'])) {
             $existingMemo = SafetyMemo::find($data['id']);
-            $pdfFile = $existingMemo?->pdf_file;
+            $pdfFile = $existingMemo?->url;
         }
 
         // Проверяем что pdf_file не пустой для новых записей
@@ -153,14 +211,48 @@ class SafetyMemoScreen extends Screen
             ['id' => $data['id'] ?? null],
             [
                 'name' => $data['name'],
-                'pdf_file' => $pdfFile,
+                'url' => $pdfFile,
+                'type' => SafetyMemo::TYPE_PDF,
                 'lang' => $data['lang'] ?? 'ru',
                 'status' => $data['status'] ?? true,
                 'sort' => $data['sort'] ?? 0,
             ]
         );
 
-        Toast::info('Памятка успешно сохранена.');
+        Toast::info('Памятка PDF успешно сохранена.');
+    }
+
+    public function saveVideoMemo(Request $request)
+    {
+        $data = $request->input('memo');
+
+        $youtubeUrl = $data['youtube_url'] ?? null;
+
+        // Если редактируем и URL не указан - сохраняем старый
+        if (empty($youtubeUrl) && !empty($data['id'])) {
+            $existingMemo = SafetyMemo::find($data['id']);
+            $youtubeUrl = $existingMemo?->url;
+        }
+
+        // Проверяем что youtube_url не пустой для новых записей
+        if (empty($youtubeUrl) && empty($data['id'])) {
+            Toast::error('Необходимо указать ссылку на YouTube.');
+            return;
+        }
+
+        SafetyMemo::updateOrCreate(
+            ['id' => $data['id'] ?? null],
+            [
+                'name' => $data['name'],
+                'url' => $youtubeUrl,
+                'type' => SafetyMemo::TYPE_VIDEO,
+                'lang' => $data['lang'] ?? 'ru',
+                'status' => $data['status'] ?? true,
+                'sort' => $data['sort'] ?? 0,
+            ]
+        );
+
+        Toast::info('Памятка YouTube успешно сохранена.');
     }
 
     public function deleteMemo(Request $request)
