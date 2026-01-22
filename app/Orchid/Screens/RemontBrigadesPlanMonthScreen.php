@@ -2,10 +2,12 @@
 
 namespace App\Orchid\Screens;
 
+use App\Imports\RemontBrigadeDataImport;
 use App\Models\RemontBrigade;
 use App\Models\RemontBrigadeFullData;
 use App\Models\RemontBrigadesPlan;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Actions\ModalToggle;
@@ -39,8 +41,8 @@ class RemontBrigadesPlanMonthScreen extends Screen
         // Получаем все записи fullData для этого месяца
         $fullData = RemontBrigadeFullData::whereIn('plan_id', $planIds)
             ->with(['plan.brigade.parent'])
-            ->orderBy('end_date', 'desc')
-            ->orderBy('id', 'desc')
+//            ->orderBy('end_date', 'desc')
+            ->orderBy('id', 'asc')
             ->get();
 
         // Статистика
@@ -93,6 +95,12 @@ class RemontBrigadesPlanMonthScreen extends Screen
             Link::make('← Назад')
                 ->route('platform.remont-plans')
                 ->icon('arrow-left'),
+
+            ModalToggle::make('Импорт Excel')
+                ->icon('bs.file-earmark-spreadsheet') // или 'cloud-upload'
+                ->modal('importModal')
+                ->method('importFromFile') // Метод, который вызовется при сабмите
+                ->class('btn btn-success'), // Зеленая кнопка для акцента
 
             ModalToggle::make('Добавить запись')
                 ->modal('createFullDataModal')
@@ -289,7 +297,69 @@ class RemontBrigadesPlanMonthScreen extends Screen
                 ->applyButton('Сохранить')
                 ->closeButton('Отмена')
                 ->async('asyncGetFullData'),
+
+            // Модальное окно для импорта
+            Layout::modal('importModal', [
+                Layout::rows([
+                    Input::make('file')
+                        ->type('file')
+                        ->title('Выберите файл Excel')
+                        ->accepted('.xlsx, .xls, .csv')
+                        ->help('Загрузите файл с данными за ' . $this->month),
+                    ]),
+                ])
+                ->title('Импорт данных из Excel')
+                ->applyButton('Загрузить'),
         ];
+    }
+
+    public function importFromFile(Request $request, string $month)
+    {
+        // 1. Валидация
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv',
+        ]);
+
+        // 2. Увеличиваем лимит памяти для импорта
+        ini_set('memory_limit', '1024M');
+        set_time_limit(300); // 5 минут на выполнение
+
+        // 3. Запуск импорта
+        try {
+            $import = new RemontBrigadeDataImport($month);
+            Excel::import($import, $request->file('file'));
+
+            // Получаем ошибки импорта
+            $errors = $import->getErrors();
+
+            if (!empty($errors)) {
+                // Группируем ошибки по типу
+                $brigadeErrors = array_filter($errors, fn($e) => $e['type'] === 'brigade_not_found');
+                $planErrors = array_filter($errors, fn($e) => $e['type'] === 'plan_not_found');
+
+                $message = 'Импорт завершён с ошибками: ';
+
+                if (!empty($brigadeErrors)) {
+                    $brigadeNumbers = array_unique(array_column($brigadeErrors, 'message'));
+                    $message .= count($brigadeErrors) . ' записей - бригада не найдена. ';
+                }
+
+                if (!empty($planErrors)) {
+                    $planNumbers = array_unique(array_map(function($e) {
+                        preg_match("/бригады '(\d+)'/", $e['message'], $m);
+                        return $m[1] ?? '';
+                    }, $planErrors));
+                    $message .= 'Планы не найдены для бригад: ' . implode(', ', array_filter($planNumbers));
+                }
+
+                Toast::warning($message);
+            } else {
+                Toast::info('Данные успешно импортированы!');
+            }
+        } catch (\Exception $e) {
+            // Ловим ошибки (например, неверный формат дат)
+            Toast::error('Ошибка импорта: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -306,7 +376,8 @@ class RemontBrigadesPlanMonthScreen extends Screen
             ->with('parent')
             ->get()
             ->mapWithKeys(function ($brigade) {
-                return [$brigade->id => $brigade->parent->name . ' - ' . $brigade->name];
+                $parentName = $brigade->parent ? $brigade->parent->name : 'Без цеха';
+                return [$brigade->id => $parentName . ' - ' . $brigade->name];
             })
             ->toArray();
     }
