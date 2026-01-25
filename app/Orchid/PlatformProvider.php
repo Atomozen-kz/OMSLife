@@ -191,6 +191,13 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.remont-plans')
                 ->divider(),
 
+            Menu::make('Сводки по бригадам')
+                ->icon('bs.file-earmark-text')
+                ->title('Сводки по бригадам')
+                ->route('platform.brigade-reports')
+                ->permission('platform.brigade-reports')
+                ->divider(),
+
             Menu::make('Жировки')
                 ->icon('bs.file-earmark-pdf')
                 ->title('Жировки')
@@ -359,6 +366,9 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('platform.extraction', 'Добыча нефти')
                 ->addPermission('platform.remont-brigades', 'Ремонт скважин')
                 ->addPermission('platform.remont-plans', 'Планы ремонта (V2)'),
+
+            ItemPermission::group('Сводки по бригадам')
+                ->addPermission('platform.brigade-reports', 'Сводки по бригадам'),
 
             ItemPermission::group('Жировки')
                 ->addPermission('platform.payroll-slip', 'Жировки'),

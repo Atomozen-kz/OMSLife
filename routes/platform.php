@@ -8,6 +8,7 @@ use App\Orchid\Screens\AppealScreen;
 use App\Orchid\Screens\AppealViewScreen;
 use App\Orchid\Screens\BankIdeaScreen;
 use App\Orchid\Screens\BankIdeasScreen;
+use App\Orchid\Screens\BrigadeReportsScreen;
 use App\Orchid\Screens\EditOrAdd\GlobalPageEditOrAddScreen;
 use App\Orchid\Screens\EditOrAdd\NewsEditOrAddScreen;
 use App\Orchid\Screens\EditOrAdd\PushEditOrAddScreen;
@@ -282,4 +283,7 @@ Route::screen('/partner-places', \App\Orchid\Screens\PartnerPlaceScreen::class)-
 
 // Памятки по тех. безопасности
 Route::screen('/safety-memos', \App\Orchid\Screens\SafetyMemoScreen::class)->name('platform.safety-memos');
+
+// Сводки по бригадам
+Route::screen('/brigade-reports', \App\Orchid\Screens\BrigadeReportsScreen::class)->name('platform.brigade-reports');
 

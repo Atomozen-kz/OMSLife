@@ -6,6 +6,7 @@ use App\Http\Controllers\DocumentSignController;
 use App\Http\Controllers\mobile\ApiPayrollSlipController;
 use App\Http\Controllers\mobile\AppealController;
 use App\Http\Controllers\mobile\BankIdeaV2Controller;
+use App\Http\Controllers\mobile\BrigadeReportController;
 use App\Http\Controllers\mobile\ChatController;
 use App\Http\Controllers\mobile\ExtractionApiController;
 use App\Http\Controllers\mobile\FaqController;
@@ -200,6 +201,9 @@ Route::middleware('auth:custom')->group(function () {
         Route::post('/my-visits', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'getMyVisits']);
         Route::post('/my-stats', [\App\Http\Controllers\mobile\PartnerPlaceApiController::class, 'getMyVisitsStats']);
     });
+
+    // Сводки по бригадам
+    Route::post('/brigade-reports', [BrigadeReportController::class, 'index']);
 
 
     // END AUTH GROUPS
