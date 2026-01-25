@@ -287,3 +287,6 @@ Route::screen('/safety-memos', \App\Orchid\Screens\SafetyMemoScreen::class)->nam
 // Сводки по бригадам
 Route::screen('/brigade-reports', \App\Orchid\Screens\BrigadeReportsScreen::class)->name('platform.brigade-reports');
 
+// Логистика и МТС
+Route::screen('/logistics-documents', \App\Orchid\Screens\LogisticsDocumentsScreen::class)->name('platform.logistics-documents');
+

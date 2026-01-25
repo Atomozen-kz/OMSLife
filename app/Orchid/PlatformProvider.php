@@ -198,6 +198,13 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.brigade-reports')
                 ->divider(),
 
+            Menu::make('Логистика и МТС')
+                ->icon('bs.box-seam')
+                ->title('Логистика и МТС')
+                ->route('platform.logistics-documents')
+                ->permission('platform.logistics-documents')
+                ->divider(),
+
             Menu::make('Жировки')
                 ->icon('bs.file-earmark-pdf')
                 ->title('Жировки')
@@ -369,6 +376,9 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Сводки по бригадам')
                 ->addPermission('platform.brigade-reports', 'Сводки по бригадам'),
+
+            ItemPermission::group('Логистика и МТС')
+                ->addPermission('platform.logistics-documents', 'Логистика и МТС'),
 
             ItemPermission::group('Жировки')
                 ->addPermission('platform.payroll-slip', 'Жировки'),

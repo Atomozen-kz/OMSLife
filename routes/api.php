@@ -7,6 +7,7 @@ use App\Http\Controllers\mobile\ApiPayrollSlipController;
 use App\Http\Controllers\mobile\AppealController;
 use App\Http\Controllers\mobile\BankIdeaV2Controller;
 use App\Http\Controllers\mobile\BrigadeReportController;
+use App\Http\Controllers\mobile\LogisticsDocumentController;
 use App\Http\Controllers\mobile\ChatController;
 use App\Http\Controllers\mobile\ExtractionApiController;
 use App\Http\Controllers\mobile\FaqController;
@@ -204,6 +205,9 @@ Route::middleware('auth:custom')->group(function () {
 
     // Сводки по бригадам
     Route::post('/brigade-reports', [BrigadeReportController::class, 'index']);
+
+    // Логистика и МТС
+    Route::post('/logistics-documents', [LogisticsDocumentController::class, 'index']);
 
 
     // END AUTH GROUPS
