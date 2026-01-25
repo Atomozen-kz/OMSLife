@@ -252,10 +252,10 @@ class LogisticsDocumentsScreen extends Screen
             // Получаем загруженный файл
             $uploadedFile = $request->file('document.file');
 
-            // Создаём имя файла: "{name}_{timestamp}.{extension}"
+            // Создаём безопасное имя файла: "logistics_document_{timestamp}.{extension}"
             $timestamp = time();
             $extension = $uploadedFile->getClientOriginalExtension();
-            $fileName = "{$data['name']}_{$timestamp}.{$extension}";
+            $fileName = "logistics_document_{$timestamp}.{$extension}";
 
             // Сохраняем файл
             $filePath = $uploadedFile->storeAs('logistics_documents', $fileName, 'public');

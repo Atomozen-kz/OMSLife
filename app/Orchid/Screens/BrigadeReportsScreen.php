@@ -184,11 +184,11 @@ class BrigadeReportsScreen extends Screen
             // Получаем загруженный файл
             $uploadedFile = $request->file('report.file');
 
-            // Создаём имя файла: "сводка на [date]_[timestamp].docx"
-            $date = \Carbon\Carbon::parse($data['date'])->format('d.m.Y');
+             // Создаём безопасное имя файла: "brigade_report_{date}_{timestamp}.{extension}"
+            $date = \Carbon\Carbon::parse($data['date'])->format('Y-m-d');
             $timestamp = time();
             $extension = $uploadedFile->getClientOriginalExtension();
-            $fileName = "сводка на {$date}_{$timestamp}.{$extension}";
+            $fileName = "brigade_report_{$date}_{$timestamp}.{$extension}";
 
             // Сохраняем файл
             $filePath = $uploadedFile->storeAs('brigade_reports', $fileName, 'public');
