@@ -290,3 +290,13 @@ Route::screen('/brigade-reports', \App\Orchid\Screens\BrigadeReportsScreen::clas
 // Логистика и МТС
 Route::screen('/logistics-documents', \App\Orchid\Screens\LogisticsDocumentsScreen::class)->name('platform.logistics-documents');
 
+// Чек-листы для мастеров бригад
+Route::screen('/brigade-checklist/items', \App\Orchid\Screens\BrigadeChecklistItemsScreen::class)->name('platform.brigade-checklist.items');
+Route::screen('/brigade-checklist/masters', \App\Orchid\Screens\BrigadeMastersScreen::class)->name('platform.brigade-checklist.masters');
+Route::screen('/brigade-checklist/responses', \App\Orchid\Screens\BrigadeChecklistResponsesScreen::class)->name('platform.brigade-checklist.responses');
+
+// Детальная страница чек-листа (обычный маршрут вместо screen)
+Route::get('/brigade-checklist/detail/{id}', [\App\Http\Controllers\BrigadeChecklistDetailController::class, 'show'])
+    ->name('platform.brigade-checklist.session.detail');
+Route::get('/brigade-checklist/detail/{id}/export-pdf', [\App\Http\Controllers\BrigadeChecklistDetailController::class, 'exportPdf'])
+    ->name('platform.brigade-checklist.session.export-pdf');

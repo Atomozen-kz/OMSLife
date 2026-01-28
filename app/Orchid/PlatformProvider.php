@@ -205,6 +205,28 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.logistics-documents')
                 ->divider(),
 
+            Menu::make('Чек-листы бригад')
+                ->icon('bs.clipboard-check')
+                ->title('Чек-листы бригад')
+                ->permission('platform.brigade-checklist')
+                ->list([
+                    Menu::make('Мероприятия')
+                        ->icon('bs.list-check')
+                        ->route('platform.brigade-checklist.items')
+                        ->permission('platform.brigade-checklist'),
+
+                    Menu::make('Мастера')
+                        ->icon('bs.person-badge')
+                        ->route('platform.brigade-checklist.masters')
+                        ->permission('platform.brigade-checklist'),
+
+                    Menu::make('История ответов')
+                        ->icon('bs.clipboard-data')
+                        ->route('platform.brigade-checklist.responses')
+                        ->permission('platform.brigade-checklist'),
+                ])
+                ->divider(),
+
             Menu::make('Жировки')
                 ->icon('bs.file-earmark-pdf')
                 ->title('Жировки')
@@ -379,6 +401,9 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Логистика и МТС')
                 ->addPermission('platform.logistics-documents', 'Логистика и МТС'),
+
+            ItemPermission::group('Чек-листы бригад')
+                ->addPermission('platform.brigade-checklist', 'Управление чек-листами бригад'),
 
             ItemPermission::group('Жировки')
                 ->addPermission('platform.payroll-slip', 'Жировки'),

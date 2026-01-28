@@ -56,5 +56,9 @@ class DatabaseSeeder extends Seeder
 
         // Наш сидер типов для банка идей
         $this->call(\Database\Seeders\BankIdeasTypesSeeder::class);
+
+        // Сидеры для чек-листов бригад
+        $this->call(\Database\Seeders\BrigadeChecklistPermissionSeeder::class);
+        $this->call(\Database\Seeders\BrigadeChecklistItemsSeeder::class);
     }
 }

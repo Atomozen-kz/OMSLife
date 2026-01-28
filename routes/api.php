@@ -6,6 +6,7 @@ use App\Http\Controllers\DocumentSignController;
 use App\Http\Controllers\mobile\ApiPayrollSlipController;
 use App\Http\Controllers\mobile\AppealController;
 use App\Http\Controllers\mobile\BankIdeaV2Controller;
+use App\Http\Controllers\mobile\BrigadeChecklistController;
 use App\Http\Controllers\mobile\BrigadeReportController;
 use App\Http\Controllers\mobile\LogisticsDocumentController;
 use App\Http\Controllers\mobile\ChatController;
@@ -208,6 +209,18 @@ Route::middleware('auth:custom')->group(function () {
 
     // Логистика и МТС
     Route::post('/logistics-documents', [LogisticsDocumentController::class, 'index']);
+
+    // Чек-листы для мастеров бригад
+    Route::prefix('brigade-checklist')->group(function () {
+        Route::get('/check-master-status', [BrigadeChecklistController::class, 'checkMasterStatus'])
+            ->name('api.brigade-checklist.check-status');
+        Route::post('/items', [BrigadeChecklistController::class, 'getChecklistItems'])
+            ->name('api.brigade-checklist.items');
+        Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklistResponse'])
+            ->name('api.brigade-checklist.submit');
+        Route::post('/history', [BrigadeChecklistController::class, 'getMyHistory'])
+            ->name('api.brigade-checklist.history');
+    });
 
 
     // END AUTH GROUPS
