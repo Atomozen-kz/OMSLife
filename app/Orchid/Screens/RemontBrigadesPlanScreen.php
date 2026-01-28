@@ -8,6 +8,8 @@ use App\Models\RemontBrigadesDowntime;
 use App\Models\RemontBrigadesPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Orchid\Attachment\Models\Attachment;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Actions\ModalToggle;
@@ -36,7 +38,7 @@ class RemontBrigadesPlanScreen extends Screen
             ->get();
 
         // Агрегация данных по месяцам для таблицы статистики
-        $monthlyStats = RemontBrigadesPlan::select(
+        $monthlyStatsAll = RemontBrigadesPlan::select(
                 'month',
                 DB::raw('SUM(plan) as total_plan')
             )
@@ -52,24 +54,43 @@ class RemontBrigadesPlanScreen extends Screen
                     ? round($allFullDataForMonth->avg('unv_hours'), 1)
                     : 0;
 
+                // Подсчёт простоев для месяца
+                $totalDowntime = RemontBrigadesDowntime::whereIn('plan_id', $planIds)->sum('hours');
+
                 $item->total_fact = $totalFact;
                 $item->deviation = $totalFact - $item->total_plan;
                 $item->month_name_ru = RemontBrigadesPlan::formatMonthYearRu($item->month);
                 $item->avg_unv = $avgUnv;
+                $item->total_downtime = $totalDowntime;
                 return $item;
             });
 
-        // Статистика по бригадам
-        $brigadeStats = RemontBrigade::whereNotNull('parent_id')
-            ->with(['plans.fullData', 'parent'])
-            ->get()
-            ->map(function (RemontBrigade $brigade) {
-                $totalPlan = $brigade->plans->sum('plan');
-                $totalFact = $brigade->plans->sum(function ($plan) {
+        // Группируем статистику по годам
+        $monthlyStatsByYear = $monthlyStatsAll->groupBy(function ($item) {
+            return substr($item->month, 0, 4); // Извлекаем год из "YYYY-MM"
+        })->sortKeysDesc(); // Сортируем годы в обратном порядке (новые сначала)
+
+        // Статистика по бригадам - получаем все годы из планов
+        $brigades = RemontBrigade::whereNotNull('parent_id')
+            ->with(['plans.fullData', 'plans.downtimes', 'parent'])
+            ->get();
+
+        // Группируем статистику бригад по годам
+        $brigadeStatsByYear = collect();
+
+        foreach ($brigades as $brigade) {
+            // Группируем планы бригады по годам
+            $plansByYear = $brigade->plans->groupBy(function ($plan) {
+                return substr($plan->month, 0, 4);
+            });
+
+            foreach ($plansByYear as $year => $yearPlans) {
+                $totalPlan = $yearPlans->sum('plan');
+                $totalFact = $yearPlans->sum(function ($plan) {
                     return $plan->fullData->count();
                 });
 
-                $allFullData = $brigade->plans->flatMap(function ($plan) {
+                $allFullData = $yearPlans->flatMap(function ($plan) {
                     return $plan->fullData;
                 });
 
@@ -77,7 +98,15 @@ class RemontBrigadesPlanScreen extends Screen
                     ? round($allFullData->avg('unv_hours'), 1)
                     : 0;
 
-                return new Repository([
+                $totalDowntime = $yearPlans->sum(function ($plan) {
+                    return $plan->downtimes->sum('hours');
+                });
+
+                if (!$brigadeStatsByYear->has($year)) {
+                    $brigadeStatsByYear->put($year, collect());
+                }
+
+                $brigadeStatsByYear->get($year)->push(new Repository([
                     'id' => $brigade->id,
                     'name' => $brigade->name,
                     'workshop_name' => $brigade->parent?->name ?? '-',
@@ -85,14 +114,32 @@ class RemontBrigadesPlanScreen extends Screen
                     'total_fact' => $totalFact,
                     'deviation' => $totalFact - $totalPlan,
                     'avg_unv' => $avgUnv,
-                ]);
-            });
+                    'total_downtime' => $totalDowntime,
+                ]));
+            }
+        }
 
-        return [
+        // Сортируем годы в обратном порядке
+        $brigadeStatsByYear = $brigadeStatsByYear->sortKeysDesc();
+
+        // Формируем массив данных с таблицами для каждого года
+        $result = [
             'workshops' => $workshops,
-            'monthlyStats' => $monthlyStats,
-            'brigadeStats' => $brigadeStats,
+            'monthlyStatsByYear' => $monthlyStatsByYear,
+            'brigadeStatsByYear' => $brigadeStatsByYear,
         ];
+
+        // Добавляем данные для каждого года отдельно (месячная статистика)
+        foreach ($monthlyStatsByYear as $year => $stats) {
+            $result["monthlyStats_{$year}"] = $stats;
+        }
+
+        // Добавляем данные для каждого года отдельно (статистика по бригадам)
+        foreach ($brigadeStatsByYear as $year => $stats) {
+            $result["brigadeStats_{$year}"] = $stats;
+        }
+
+        return $result;
     }
 
     /**
@@ -130,6 +177,11 @@ class RemontBrigadesPlanScreen extends Screen
                 ->modal('createBrigadeModal')
                 ->method('createBrigade')
                 ->icon('plus'),
+
+            ModalToggle::make('Импорт простоев')
+                ->modal('importDowntimeModal')
+                ->method('importDowntime')
+                ->icon('cloud-upload'),
         ];
     }
 
@@ -189,48 +241,86 @@ class RemontBrigadesPlanScreen extends Screen
      */
     protected function monthsTableLayout(): array
     {
+        // Получаем данные по годам из query
+        $monthlyStatsByYear = $this->query()['monthlyStatsByYear'];
+
+        // Если нет данных, возвращаем пустой массив
+        if ($monthlyStatsByYear->isEmpty()) {
+            return [
+                Layout::rows([
+                    \Orchid\Screen\Fields\Label::make('')
+                        ->title('Статистика по месяцам (План/Факт)'),
+                    \Orchid\Screen\Fields\Label::make('')
+                        ->title('Нет данных'),
+                ]),
+            ];
+        }
+
+        // Создаем табы для каждого года
+        $tabs = [];
+        foreach ($monthlyStatsByYear as $year => $monthlyStats) {
+            // Используем год как строковое название таба с явным указанием ключа
+            $yearLabel = "Год {$year}"; // Добавляем текст "Год" перед годом
+            $tabs[$yearLabel] = $this->createMonthlyTable($year);
+        }
+
         return [
             Layout::rows([
                 \Orchid\Screen\Fields\Label::make('')
                     ->title('Статистика по месяцам (План/Факт)'),
             ]),
 
-            Layout::table('monthlyStats', [
-                TD::make('month_name_ru', 'Месяц')
-                    ->render(function ($item) {
-                        $month = $item->month ?? null;
-                        $monthName = $item->month_name_ru ?? '-';
-
-                        if (empty($month) || !preg_match('/^\d{4}-\d{2}$/', $month)) {
-                            return $monthName;
-                        }
-
-                        return Link::make($monthName)
-                            ->route('platform.remont-plans.month', ['month' => $month]);
-                    }),
-
-                TD::make('total_plan', 'План')
-                    ->alignCenter(),
-
-                TD::make('total_fact', 'Факт')
-                    ->alignCenter(),
-
-                TD::make('deviation', 'Отклонение')
-                    ->alignCenter()
-                    ->render(function ($item) {
-                        $color = $item->deviation >= 0 ? '#28a745' : '#dc3545';
-                        $prefix = $item->deviation >= 0 ? '+' : '';
-                        return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$item->deviation}</span>";
-                    }),
-
-                TD::make('avg_unv', 'Средний УНВ (часы)')
-                    ->alignCenter()
-                    ->render(function ($item) {
-                        $avgUnv = $item->avg_unv;
-                        return $avgUnv > 0 ? $avgUnv : '-';
-                    }),
-            ]),
+            Layout::tabs($tabs),
         ];
+    }
+
+    /**
+     * Создаем таблицу для конкретного года
+     */
+    protected function createMonthlyTable(string $year)
+    {
+        return Layout::table("monthlyStats_{$year}", [
+            TD::make('month_name_ru', 'Месяц')
+                ->render(function ($item) {
+                    $month = $item->month ?? null;
+                    $monthName = $item->month_name_ru ?? '-';
+
+                    if (empty($month) || !preg_match('/^\d{4}-\d{2}$/', $month)) {
+                        return $monthName;
+                    }
+
+                    return Link::make($monthName)
+                        ->route('platform.remont-plans.month', ['month' => $month]);
+                }),
+
+            TD::make('total_plan', 'План')
+                ->alignCenter(),
+
+            TD::make('total_fact', 'Факт')
+                ->alignCenter(),
+
+            TD::make('deviation', 'Отклонение')
+                ->alignCenter()
+                ->render(function ($item) {
+                    $color = $item->deviation >= 0 ? '#28a745' : '#dc3545';
+                    $prefix = $item->deviation >= 0 ? '+' : '';
+                    return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$item->deviation}</span>";
+                }),
+
+            TD::make('avg_unv', 'Средний УНВ (часы)')
+                ->alignCenter()
+                ->render(function ($item) {
+                    $avgUnv = $item->avg_unv;
+                    return $avgUnv > 0 ? $avgUnv : '-';
+                }),
+
+            TD::make('total_downtime', 'Простои (часы)')
+                ->alignCenter()
+                ->render(function ($item) {
+                    $downtime = $item->total_downtime ?? 0;
+                    return $downtime > 0 ? $downtime : '-';
+                }),
+        ]);
     }
 
     /**
@@ -238,61 +328,82 @@ class RemontBrigadesPlanScreen extends Screen
      */
     protected function brigadeStatsTableLayout(): array
     {
+        // Получаем данные по годам из query
+        $brigadeStatsByYear = $this->query()['brigadeStatsByYear'];
+
+        // Если нет данных, возвращаем пустой массив
+        if ($brigadeStatsByYear->isEmpty()) {
+            return [
+                Layout::rows([
+                    \Orchid\Screen\Fields\Label::make('')
+                        ->title('Статистика по бригадам'),
+                    \Orchid\Screen\Fields\Label::make('')
+                        ->title('Нет данных'),
+                ]),
+            ];
+        }
+
+        // Создаем табы для каждого года
+        $tabs = [];
+        foreach ($brigadeStatsByYear as $year => $brigadeStats) {
+            // Используем год как строковое название таба с явным указанием ключа
+            $yearLabel = "Год {$year}"; // Добавляем текст "Год" перед годом
+            $tabs[$yearLabel] = $this->createBrigadeStatsTable($year);
+        }
+
         return [
             Layout::rows([
                 \Orchid\Screen\Fields\Label::make('')
                     ->title('Статистика по бригадам'),
             ]),
 
-            Layout::table('brigadeStats', [
-                TD::make('workshop_name', 'Цех'),
-
-                TD::make('name', 'Бригада')
-                    ->render(function (Repository $item) {
-                        return Link::make($item->get('name'))
-                            ->route('platform.remont-plans.brigade', ['brigade' => $item->get('id')]);
-                    }),
-
-                TD::make('total_plan', 'План')
-                    ->alignCenter(),
-
-                TD::make('total_fact', 'Факт')
-                    ->alignCenter(),
-
-                TD::make('deviation', 'Отклонение')
-                    ->alignCenter()
-                    ->render(function (Repository $item) {
-                        $deviation = $item->get('deviation');
-                        $color = $deviation >= 0 ? '#28a745' : '#dc3545';
-                        $prefix = $deviation >= 0 ? '+' : '';
-                        return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$deviation}</span>";
-                    }),
-
-                TD::make('avg_unv', 'Средний УНВ (часы)')
-                    ->alignCenter()
-                    ->render(function (Repository $item) {
-                        $avgUnv = $item->get('avg_unv');
-                        return $avgUnv > 0 ? $avgUnv : '-';
-                    }),
-
-//                TD::make('', 'Действия')
-//                    ->alignCenter()
-//                    ->render(function (Repository $item) {
-//                        return \Orchid\Screen\Fields\Group::make([
-//                            ModalToggle::make('')
-//                                ->modal('editBrigadeModal')
-//                                ->method('updateBrigade')
-//                                ->icon('pencil')
-//                                ->asyncParameters(['brigade' => $item->get('id')]),
-//
-//                            Button::make('')
-//                                ->icon('trash')
-//                                ->confirm('Вы уверены, что хотите удалить эту бригаду? Все планы и записи также будут удалены!')
-//                                ->method('deleteBrigade', ['id' => $item->get('id')]),
-//                        ]);
-//                    }),
-            ]),
+            Layout::tabs($tabs),
         ];
+    }
+
+    /**
+     * Создаем таблицу статистики по бригадам для конкретного года
+     */
+    protected function createBrigadeStatsTable(string $year)
+    {
+        return Layout::table("brigadeStats_{$year}", [
+            TD::make('workshop_name', 'Цех'),
+
+            TD::make('name', 'Бригада')
+                ->render(function (Repository $item) {
+                    return Link::make($item->get('name'))
+                        ->route('platform.remont-plans.brigade', ['brigade' => $item->get('id')]);
+                }),
+
+            TD::make('total_plan', 'План')
+                ->alignCenter(),
+
+            TD::make('total_fact', 'Факт')
+                ->alignCenter(),
+
+            TD::make('deviation', 'Отклонение')
+                ->alignCenter()
+                ->render(function (Repository $item) {
+                    $deviation = $item->get('deviation');
+                    $color = $deviation >= 0 ? '#28a745' : '#dc3545';
+                    $prefix = $deviation >= 0 ? '+' : '';
+                    return "<span style='color: {$color}; font-weight: bold;'>{$prefix}{$deviation}</span>";
+                }),
+
+            TD::make('avg_unv', 'Средний УНВ (часы)')
+                ->alignCenter()
+                ->render(function (Repository $item) {
+                    $avgUnv = $item->get('avg_unv');
+                    return $avgUnv > 0 ? $avgUnv : '-';
+                }),
+
+            TD::make('total_downtime', 'Простои (часы)')
+                ->alignCenter()
+                ->render(function (Repository $item) {
+                    $downtime = $item->get('total_downtime') ?? 0;
+                    return $downtime > 0 ? $downtime : '-';
+                }),
+        ]);
     }
 
     /**
@@ -435,6 +546,36 @@ class RemontBrigadesPlanScreen extends Screen
                 ->applyButton('Сохранить')
                 ->closeButton('Отмена')
                 ->async('asyncGetBrigade'),
+
+            // Модальное окно для импорта простоев
+            Layout::modal('importDowntimeModal', [
+                Layout::rows([
+                    Input::make('import_month')
+                        ->title('Месяц и год')
+                        ->type('month')
+                        ->required()
+                        ->help('Выберите месяц и год для импорта простоев')
+                        ->placeholder('YYYY-MM'),
+
+                    Input::make('downtime_file')
+                        ->title('Файл Excel')
+                        ->type('file')
+                        ->required()
+                        ->accept('.xlsx,.xls')
+                        ->help('Загрузите Excel файл с простоями'),
+
+                    TextArea::make('warning_message')
+                        ->title('⚠️ ВНИМАНИЕ!')
+                        ->value('Все существующие данные о простоях за выбранный месяц будут удалены перед импортом! Убедитесь, что вы выбрали правильный месяц и файл.')
+                        ->rows(3)
+                        ->disabled()
+                        ->style('background-color: #fff3cd; border-left: 4px solid #ffc107; color: #856404; font-weight: bold;')
+                        ->help('Это действие необратимо!'),
+                ]),
+            ])
+                ->title('Импорт простоев из Excel')
+                ->applyButton('Импортировать')
+                ->closeButton('Отмена'),
         ];
     }
 
@@ -458,8 +599,8 @@ class RemontBrigadesPlanScreen extends Screen
             'brigade_plans' => $plans,
             'brigades' => collect(),
             'workshops' => collect(),
-            'monthlyStats' => collect(),
-            'brigadeStats' => collect(),
+            'monthlyStatsByYear' => collect(),
+            'brigadeStatsByYear' => collect(),
         ];
     }
 
@@ -476,8 +617,8 @@ class RemontBrigadesPlanScreen extends Screen
             'brigades' => collect(),
             'brigade_plans' => collect(),
             'workshops' => collect(),
-            'monthlyStats' => collect(),
-            'brigadeStats' => collect(),
+            'monthlyStatsByYear' => collect(),
+            'brigadeStatsByYear' => collect(),
         ];
     }
 
@@ -559,8 +700,8 @@ class RemontBrigadesPlanScreen extends Screen
                 'name' => $workshop->name,
             ],
             'workshops' => collect(),
-            'monthlyStats' => collect(),
-            'brigadeStats' => collect(),
+            'monthlyStatsByYear' => collect(),
+            'brigadeStatsByYear' => collect(),
         ];
     }
 
@@ -578,8 +719,8 @@ class RemontBrigadesPlanScreen extends Screen
             'brigades' => collect(),
             'brigade_plans' => collect(),
             'workshops' => collect(),
-            'monthlyStats' => collect(),
-            'brigadeStats' => collect(),
+            'monthlyStatsByYear' => collect(),
+            'brigadeStatsByYear' => collect(),
         ];
     }
 
@@ -702,5 +843,200 @@ class RemontBrigadesPlanScreen extends Screen
 
         Toast::info('Бригада успешно удалена');
     }
-}
 
+    /**
+     * Импорт простоев из Excel файла
+     */
+    public function importDowntime(Request $request): void
+    {
+        $request->validate([
+            'import_month' => 'required|string|regex:/^\d{4}-\d{2}$/',
+            'downtime_file' => 'required|file|mimes:xlsx,xls',
+        ]);
+
+        $month = $request->input('import_month');
+        $file = $request->file('downtime_file');
+
+        if (!$file) {
+            Toast::error('Файл не загружен');
+            return;
+        }
+
+        try {
+            // Удаляем все существующие данные о простоях за выбранный месяц
+            $planIds = RemontBrigadesPlan::where('month', $month)->pluck('id');
+            $deletedCount = 0;
+
+            if ($planIds->isNotEmpty()) {
+                $deletedCount = RemontBrigadesDowntime::whereIn('plan_id', $planIds)->count();
+                RemontBrigadesDowntime::whereIn('plan_id', $planIds)->delete();
+                Log::info("Deleted {$deletedCount} downtime records for month {$month} before import");
+            }
+
+            // Получаем путь к загруженному файлу
+            $filePath = $file->getRealPath();
+
+            if (!file_exists($filePath)) {
+                Toast::error('Файл не существует');
+                return;
+            }
+
+            // Загружаем Excel файл
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+
+            // Заголовок колонки -> reason key
+            $reasonMap = [
+                'ремонт па' => RemontBrigadesDowntime::REASON_REMONT_PA,
+                'ожидание вахты' => RemontBrigadesDowntime::REASON_WAIT_VAHTA,
+                'метеоусловия' => RemontBrigadesDowntime::REASON_WEATHER,
+                "ожидание \nца, ацн" => RemontBrigadesDowntime::REASON_WAIT_CA_ACN,
+                'ожидание ца, ацн' => RemontBrigadesDowntime::REASON_WAIT_CA_ACN,
+                'прочие' => RemontBrigadesDowntime::REASON_OTHER,
+            ];
+
+            $created = 0;
+            $updated = 0;
+            $skipped = 0;
+
+            // Извлекаем номер месяца из выбранной даты
+            $monthNum = (int) substr($month, 5, 2);
+
+            // Ищем лист с номером месяца
+            $sheet = null;
+            foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+                $sheetName = trim((string)$worksheet->getTitle());
+                if ($sheetName === (string)$monthNum) {
+                    $sheet = $worksheet;
+                    break;
+                }
+            }
+
+            if (!$sheet) {
+                Toast::error("Лист с номером месяца {$monthNum} не найден в файле");
+                return;
+            }
+
+            // Заголовки находятся на строке 2
+            $headerRow = 2;
+            $highestColumn = $sheet->getHighestColumn();
+            $highestRow = (int)$sheet->getHighestRow();
+
+            // Определяем колонки с причинами простоев
+            $colIndexToReason = [];
+            for ($col = 1; $col <= \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn); $col++) {
+                $val = $sheet->getCellByColumnAndRow($col, $headerRow)->getValue();
+                $key = $this->normalizeHeader($val);
+
+                if (isset($reasonMap[$key])) {
+                    $colIndexToReason[$col] = $reasonMap[$key];
+                }
+            }
+
+            if (empty($colIndexToReason)) {
+                Toast::error('Не найдены колонки с причинами простоев');
+                return;
+            }
+
+            // Обрабатываем данные начиная с 3-й строки
+            for ($row = 3; $row <= $highestRow; $row++) {
+                $brigadeNameRaw = $sheet->getCellByColumnAndRow(2, $row)->getValue();
+                $brigadeName = $this->normalizeBrigade($brigadeNameRaw);
+
+                // Пропускаем итоги/цеха/пустые
+                if ($brigadeName === null || !preg_match('/^ОМС-\d+$/u', $brigadeName)) {
+                    continue;
+                }
+
+                $brigade = RemontBrigade::where('name', $brigadeName)->first();
+                if (!$brigade) {
+                    $skipped++;
+                    Log::warning("Brigade not found: {$brigadeName} (row={$row})");
+                    continue;
+                }
+
+                $plan = RemontBrigadesPlan::where('brigade_id', $brigade->id)
+                    ->where('month', $month)
+                    ->first();
+
+                if (!$plan) {
+                    $skipped++;
+                    Log::warning("Plan not found: brigade_id={$brigade->id}, month={$month} (row={$row})");
+                    continue;
+                }
+
+                foreach ($colIndexToReason as $colIndex => $reasonKey) {
+                    $hoursRaw = $sheet->getCellByColumnAndRow($colIndex, $row)->getCalculatedValue();
+                    $hours = $this->toNumber($hoursRaw);
+
+                    // Не записываем пустое/0
+                    if ($hours === null || $hours <= 0) {
+                        continue;
+                    }
+
+                    $unique = [
+                        'plan_id' => $plan->id,
+                        'brigade_id' => $brigade->id,
+                        'reason' => $reasonKey,
+                    ];
+
+                    $model = RemontBrigadesDowntime::create(array_merge($unique, [
+                        'hours' => $hours,
+                    ]));
+
+                    $created++;
+                }
+            }
+
+            $message = "Импорт завершен! Удалено: {$deletedCount}, Создано: {$created}, Пропущено: {$skipped}";
+            Toast::success($message);
+            Log::info($message);
+
+        } catch (\Exception $e) {
+            Log::error('Import downtime error: ' . $e->getMessage());
+            Toast::error('Ошибка при импорте: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Нормализация заголовка колонки
+     */
+    private function normalizeHeader(mixed $v): string
+    {
+        $s = is_string($v) ? $v : (string)($v ?? '');
+        $s = trim(mb_strtolower($s));
+        // Нормализуем пробелы
+        $s = preg_replace('/[ \t]+/u', ' ', $s);
+        return $s;
+    }
+
+    /**
+     * Нормализация названия бригады
+     */
+    private function normalizeBrigade(mixed $v): ?string
+    {
+        if ($v === null) return null;
+        $s = trim((string)$v);
+        if ($s === '') return null;
+        // Убираем лишние пробелы: "ОМС - 1"
+        $s = preg_replace('/\s+/u', '', $s);   // "ОМС-1" или "ОМС1"
+        $s = str_replace('ОМС', 'ОМС-', $s);   // "ОМС1" -> "ОМС-1"
+        $s = preg_replace('/-+/u', '-', $s);   // Убрать двойные дефисы
+        return $s;
+    }
+
+    /**
+     * Преобразование значения в число
+     */
+    private function toNumber(mixed $v): ?float
+    {
+        if ($v === null) return null;
+
+        if (is_numeric($v)) return (float)$v;
+
+        $s = trim((string)$v);
+        if ($s === '') return null;
+
+        $s = str_replace(',', '.', $s);
+        return is_numeric($s) ? (float)$s : null;
+    }
+}
