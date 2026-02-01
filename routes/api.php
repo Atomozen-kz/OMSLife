@@ -215,7 +215,7 @@ Route::middleware('auth:custom')->group(function () {
     Route::prefix('brigade-checklist')->group(function () {
         Route::get('/check-master-status', [BrigadeChecklistController::class, 'checkMasterStatus'])
             ->name('api.brigade-checklist.check-status');
-        Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklist'])
+        Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklistResponse'])
             ->name('api.brigade-checklist.submit');
         Route::post('/history', [BrigadeChecklistController::class, 'getMyHistory'])->name('api.brigade-checklist.history');
         Route::post('/items', [BrigadeChecklistController::class, 'getChecklistItems'])->name('api.brigade-checklist.items');
