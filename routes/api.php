@@ -217,8 +217,8 @@ Route::middleware('auth:custom')->group(function () {
             ->name('api.brigade-checklist.check-status');
         Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklist'])
             ->name('api.brigade-checklist.submit');
-        Route::post('/history', [BrigadeChecklistController::class, 'getMyHistory'])
-            ->name('api.brigade-checklist.history');
+        Route::post('/history', [BrigadeChecklistController::class, 'getMyHistory'])->name('api.brigade-checklist.history');
+        Route::post('/items', [BrigadeChecklistController::class, 'getChecklistItems'])->name('api.brigade-checklist.items');
     });
 
     // СИЗ (Средства индивидуальной защиты) API
