@@ -154,9 +154,9 @@ Route::post('/appeal/view/{appeal}/change-status', [AppealViewScreen::class, 'ch
 Route::post('/appeal/view/{appeal}/add-answer', [AppealViewScreen::class, 'addAnswer'])->name('platform.appeal.add-answer');
 Route::post('/appeal/view/{appeal}/transfer', [AppealViewScreen::class, 'transferAppeal'])->name('platform.appeal.transfer');
 
-
-
-
+// СИЗ (Средства индивидуальной защиты)
+Route::screen('/siz-types', \App\Orchid\Screens\SizTypesScreen::class)->name('platform.siz.types');
+Route::screen('/siz-inventory', \App\Orchid\Screens\SizInventoryScreen::class)->name('platform.siz.inventory');
 
 // Main
 Route::screen('/main', PlatformScreen::class)

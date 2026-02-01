@@ -19,6 +19,7 @@ use App\Http\Controllers\mobile\PickupPointController;
 use App\Http\Controllers\mobile\PromzonaController;
 use App\Http\Controllers\mobile\PromzonaGeoObjectController;
 use App\Http\Controllers\mobile\ServicesVarController;
+use App\Http\Controllers\mobile\SizInventoryApiController;
 use App\Http\Controllers\mobile\SotrudnikiController;
 use App\Http\Controllers\mobile\SpravkaSotrudnikamController;
 use App\Http\Controllers\mobile\StoriesController;
@@ -214,12 +215,21 @@ Route::middleware('auth:custom')->group(function () {
     Route::prefix('brigade-checklist')->group(function () {
         Route::get('/check-master-status', [BrigadeChecklistController::class, 'checkMasterStatus'])
             ->name('api.brigade-checklist.check-status');
-        Route::post('/items', [BrigadeChecklistController::class, 'getChecklistItems'])
-            ->name('api.brigade-checklist.items');
-        Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklistResponse'])
+        Route::post('/submit', [BrigadeChecklistController::class, 'submitChecklist'])
             ->name('api.brigade-checklist.submit');
         Route::post('/history', [BrigadeChecklistController::class, 'getMyHistory'])
             ->name('api.brigade-checklist.history');
+    });
+
+    // СИЗ (Средства индивидуальной защиты) API
+    Route::prefix('siz')->group(function () {
+        Route::post('/types', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getSizTypes']);
+        Route::post('/inventory/all', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getAllInventory']);
+        Route::post('/inventory/by-type', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getInventoryByType']);
+        Route::post('/inventory/available', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getAvailableInventory']);
+        Route::post('/inventory/out-of-stock', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getOutOfStockInventory']);
+        Route::post('/search', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'searchSiz']);
+        Route::post('/statistics', [\App\Http\Controllers\mobile\SizInventoryApiController::class, 'getStatistics']);
     });
 
 

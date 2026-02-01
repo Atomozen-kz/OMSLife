@@ -258,6 +258,22 @@ class PlatformProvider extends OrchidServiceProvider
                ->permission('platform.appeal')
                ->divider(),
 
+           Menu::make('СИЗ')
+               ->icon('bs.shield-fill-check')
+               ->title('СИЗ (Средства индивидуальной защиты)')
+               ->permission('platform.siz')
+               ->list([
+                   Menu::make('Виды СИЗ')
+                       ->icon('bs.list-ul')
+                       ->route('platform.siz.types')
+                       ->permission('platform.siz.types'),
+
+                   Menu::make('Наличие СИЗ')
+                       ->icon('bs.box-seam-fill')
+                       ->route('platform.siz.inventory')
+                       ->permission('platform.siz.inventory'),
+               ])
+               ->divider(),
 
 //            Menu::make('Sample Screen')
 //                ->icon('bs.collection')
@@ -415,6 +431,11 @@ class PlatformProvider extends OrchidServiceProvider
 
             ItemPermission::group('Обращение | Вопросы')
                 ->addPermission('platform.appeal', 'Обращение | Вопросы'),
+
+            ItemPermission::group('СИЗ (Средства индивидуальной защиты)')
+                ->addPermission('platform.siz', 'Доступ к разделу СИЗ')
+                ->addPermission('platform.siz.types', 'Виды СИЗ')
+                ->addPermission('platform.siz.inventory', 'Наличие СИЗ'),
 
             ItemPermission::group('Часто задаваемое вопросы')
                 ->addPermission('platform.faq', 'Часто задаваемое вопросы'),
