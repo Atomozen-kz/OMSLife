@@ -18,7 +18,7 @@ class CeoBlogController extends Controller
             'text' => " ",
             'photo' => "https://omslife.kz/storage/ceo_photo.png",
             'aitu_url' => ' ',
-            'instagram_url' => 'https://www.instagram.com/damir_shyrakbayev/',
+            'instagram_url' => '',
         ];
 
         return response()->json($data);
