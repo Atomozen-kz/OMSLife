@@ -18,6 +18,7 @@ class CeoBlogController extends Controller
             'text' => " ",
             'photo' => "https://omslife.kz/storage/ceo_photo.png",
             'aitu_url' => ' ',
+            'aitu_number' => '+7 771 550 30 35',
             'instagram_url' => '',
         ];
 
