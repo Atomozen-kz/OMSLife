@@ -17,7 +17,7 @@ class CeoBlogController extends Controller
             'full_name' => 'Шыракбаев Дамир Алибекович',
             'text' => "Для связи напишите в приложение Aitu по номеру +7 776 063 65 60",
             'photo' => "https://omslife.kz/storage/ceo_photo.png",
-            'aitu_url' => ' ',
+            'aitu_url' => 'https://aitu.io/chat/+77760636560',
             'aitu_number' => '+7 776 063 65 60',
             'instagram_url' => '',
         ];
