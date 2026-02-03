@@ -15,10 +15,10 @@ class CeoBlogController extends Controller
     {
         $data = [
             'full_name' => 'Шыракбаев Дамир Алибекович',
-            'text' => "Для связи напишите в приложение Aitu по номеру +7 771 550 30 35",
+            'text' => "Для связи напишите в приложение Aitu по номеру +7 776 063 65 60",
             'photo' => "https://omslife.kz/storage/ceo_photo.png",
             'aitu_url' => ' ',
-            'aitu_number' => '+7 771 550 30 35',
+            'aitu_number' => '+7 776 063 65 60',
             'instagram_url' => '',
         ];
 
