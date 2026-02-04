@@ -14,6 +14,7 @@ class SafetyMemoOpened extends Model
     protected $fillable = [
         'safety_memo_id',
         'sotrudnik_id',
+        'count_opened',
     ];
 
     /**

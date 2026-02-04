@@ -100,15 +100,27 @@ class SafetyMemoController extends Controller
             // Проверяем существование памятки
             $safetyMemo = SafetyMemo::findOrFail($validated['id']);
 
-            // Создаём или обновляем запись о просмотре
-            SafetyMemoOpened::firstOrCreate([
-                'safety_memo_id' => $safetyMemo->id,
-                'sotrudnik_id' => $sotrudnik->id,
-            ]);
+            // Ищем существующую запись
+            $opened = SafetyMemoOpened::where('safety_memo_id', $safetyMemo->id)
+                ->where('sotrudnik_id', $sotrudnik->id)
+                ->first();
+
+            if ($opened) {
+                // Если запись существует, увеличиваем счетчик и обновляем updated_at
+                $opened->increment('count_opened');
+            } else {
+                // Если записи нет, создаём новую с count_opened = 1
+                SafetyMemoOpened::create([
+                    'safety_memo_id' => $safetyMemo->id,
+                    'sotrudnik_id' => $sotrudnik->id,
+                    'count_opened' => 1,
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Памятка отмечена как открытая',
+                'count_opened' => $opened ? $opened->count_opened : 1,
             ]);
         } catch (\Exception $e) {
             return response()->json([
