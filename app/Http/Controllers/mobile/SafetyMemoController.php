@@ -4,6 +4,7 @@ namespace App\Http\Controllers\mobile;
 
 use App\Http\Controllers\Controller;
 use App\Models\SafetyMemo;
+use App\Models\SafetyMemoOpened;
 use Illuminate\Http\Request;
 
 class SafetyMemoController extends Controller
@@ -76,6 +77,46 @@ class SafetyMemoController extends Controller
             'success' => true,
             'data' => $memos,
         ]);
+    }
+
+    public function markSafetyMemoAsOpened(Request $request)
+    {
+        // Получаем авторизованного пользователя
+        $sotrudnik = auth()->user();
+
+        if (!$sotrudnik) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unauthorized',
+            ], 401);
+        }
+
+        // Валидация запроса
+        $validated = $request->validate([
+            'id' => 'required|integer|exists:safety_memos,id',
+        ]);
+
+        try {
+            // Проверяем существование памятки
+            $safetyMemo = SafetyMemo::findOrFail($validated['id']);
+
+            // Создаём или обновляем запись о просмотре
+            SafetyMemoOpened::firstOrCreate([
+                'safety_memo_id' => $safetyMemo->id,
+                'sotrudnik_id' => $sotrudnik->id,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Памятка отмечена как открытая',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при сохранении данных',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }
 
