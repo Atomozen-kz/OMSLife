@@ -133,6 +133,21 @@ return [
             'level' => 'info',
         ],
 
+        'credentials_send' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/credentials_send.log'),
+            'level' => 'debug',
+            'days' => 14,
+            'replace_placeholders' => true,
+        ],
+
+        'credentials_not_found' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/credentials_not_found.log'),
+            'level' => 'info',
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];
