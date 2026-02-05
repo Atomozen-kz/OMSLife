@@ -19,9 +19,19 @@ class PushSotrudnikamService
      */
     public function getNewNotificationsCount(Sotrudniki $sotrudnik, array $data): int
     {
-        return PushSotrudnikam::where('lang', $data['lang'])->whereDoesntHave('readByUsers', function ($query) use ($sotrudnik) {
-            $query->where('sotrudnik_id', $sotrudnik->id);
-        })->count();
+        // Считаем непрочитанные уведомления:
+        // - Личные (recipient_id = sotrudnik->id) - независимо от языка
+        // - Общие (recipient_id = null) - с нужным языком
+        return PushSotrudnikam::where(function ($query) use ($sotrudnik, $data) {
+                $query->where('recipient_id', $sotrudnik->id)
+                    ->orWhere(function ($subQuery) use ($data) {
+                        $subQuery->whereNull('recipient_id')
+                            ->where('lang', $data['lang']);
+                    });
+            })
+            ->whereDoesntHave('readByUsers', function ($query) use ($sotrudnik) {
+                $query->where('sotrudnik_id', $sotrudnik->id);
+            })->count();
     }
 
     /**
@@ -33,15 +43,16 @@ class PushSotrudnikamService
      */
     public function getAllPushNotifications(Sotrudniki $sotrudnik, array $data)
     {
-//        $paginator = PushSotrudnikam::where('lang', $data['lang'])
-//            ->whereNull('recipient_id')
-//            ->orWhere('recipient_id', $sotrudnik->id)
-//            ->orderBy('id', 'DESC')
-//            ->paginate($data['per_page'], ['*'], 'page', $data['page']);
-        $paginator = PushSotrudnikam::where('lang', $data['lang'])
-            ->where(function ($query) use ($sotrudnik) {
-                $query->whereNull('recipient_id')
-                    ->orWhere('recipient_id', $sotrudnik->id);
+        // Личные уведомления (recipient_id = sotrudnik->id) показываются независимо от языка
+        // Общие уведомления (recipient_id = null) фильтруются по языку
+        $paginator = PushSotrudnikam::where(function ($query) use ($sotrudnik, $data) {
+                // Личные уведомления - без фильтра по языку
+                $query->where('recipient_id', $sotrudnik->id)
+                    // ИЛИ общие уведомления с нужным языком
+                    ->orWhere(function ($subQuery) use ($data) {
+                        $subQuery->whereNull('recipient_id')
+                            ->where('lang', $data['lang']);
+                    });
             })
             ->orderBy('id', 'DESC')
             ->paginate($data['per_page'], ['*'], 'page', $data['page']);

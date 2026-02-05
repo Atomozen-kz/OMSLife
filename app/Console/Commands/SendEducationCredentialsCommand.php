@@ -353,7 +353,7 @@ class SendEducationCredentialsCommand extends Command
                         'body' => '',
                         'sended' => 1,
                         'for_all' => 0,
-                        'sender_id' => 1,
+                        'sender_id' => null,
                         'recipient_id' => $sotrudnik->id,
                         'expiry_date' => Carbon::now()->addDays(60),
                     ]);
