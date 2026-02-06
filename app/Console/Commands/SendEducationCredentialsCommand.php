@@ -163,9 +163,10 @@ class SendEducationCredentialsCommand extends Command
                 $name = $employee['name'];
                 $login = $employee['login'];
                 $password = $employee['password'];
+                $tabNumber = $employee['tab_number'] ?? null; // Получаем табельный номер если есть
 
                 // Поиск сотрудника в БД
-                $result = $this->findAndProcessEmployee($name, $login, $password, $cehName, $isDryRun);
+                $result = $this->findAndProcessEmployee($name, $login, $password, $cehName, $isDryRun, $tabNumber);
 
                 $progressBar->advance();
             }
@@ -226,10 +227,58 @@ class SendEducationCredentialsCommand extends Command
     }
 
     /**
-     * Поиск и обработка сотрудника
+     * Поиск сотрудника по табельному номеру
      */
-    private function findAndProcessEmployee(string $name, string $login, string $password, string $cehName, bool $isDryRun): array
+    private function findEmployeeByTabNumber(string $tabNumber): ?\Illuminate\Database\Eloquent\Collection
     {
+        // Убираем пробелы и ведущие нули
+        $cleanTabNumber = ltrim(trim($tabNumber), '0');
+
+        if (empty($cleanTabNumber)) {
+            return null;
+        }
+
+        // Ищем по табельному номеру (с учетом возможных ведущих нулей)
+        $employees = Sotrudniki::where(function($query) use ($tabNumber, $cleanTabNumber) {
+            $query->where('tabel_nomer', $tabNumber)
+                  ->orWhere('tabel_nomer', $cleanTabNumber)
+                  ->orWhereRaw('CAST(tabel_nomer AS UNSIGNED) = ?', [$cleanTabNumber]);
+        })->get();
+
+        return $employees->isEmpty() ? null : $employees;
+    }
+
+    /**
+     * Поиск и обработка сотрудника (с поддержкой табельного номера)
+     */
+    private function findAndProcessEmployee(string $name, string $login, string $password, string $cehName, bool $isDryRun, ?string $tabNumber = null): array
+    {
+        // Если есть табельный номер, сначала пытаемся найти по нему
+        if (!empty($tabNumber)) {
+            $employees = $this->findEmployeeByTabNumber($tabNumber);
+
+            if ($employees !== null) {
+                $employeeCount = $employees->count();
+
+                Log::channel('credentials_send')->info('Поиск по табельному номеру', [
+                    'табельный_номер' => $tabNumber,
+                    'найдено' => $employeeCount,
+                    'фио' => $name,
+                ]);
+
+                // Если нашли, обрабатываем результат
+                if ($employeeCount > 0) {
+                    return $this->processFoundEmployees($employees, $name, $login, $password, $cehName, $isDryRun, 'табельный номер');
+                }
+            } else {
+                Log::channel('credentials_send')->info('По табельному номеру не найдено, попытка поиска по ФИО', [
+                    'табельный_номер' => $tabNumber,
+                    'фио' => $name,
+                ]);
+            }
+        }
+
+        // Если по табельному номеру не нашли или его нет, ищем по ФИО
         $normalizedName = $this->normalizeFullName($name);
 
         // Поиск в БД с нормализацией
@@ -240,16 +289,33 @@ class SendEducationCredentialsCommand extends Command
 
         $employeeCount = $employees->count();
 
+        Log::channel('credentials_send')->info('Поиск по ФИО', [
+            'фио' => $name,
+            'нормализованное_фио' => $normalizedName,
+            'найдено' => $employeeCount,
+        ]);
+
+        return $this->processFoundEmployees($employees, $name, $login, $password, $cehName, $isDryRun, 'ФИО');
+    }
+
+    /**
+     * Обработка найденных сотрудников
+     */
+    private function processFoundEmployees($employees, string $name, string $login, string $password, string $cehName, bool $isDryRun, string $searchMethod): array
+    {
+        $employeeCount = $employees->count();
+
         // Обработка дубликатов
         if ($employeeCount > 1) {
             $this->duplicates++;
             $ids = $employees->pluck('id')->toArray();
 
-            Log::channel('credentials_send')->warning('Найдено несколько сотрудников с одинаковым ФИО', [
+            Log::channel('credentials_send')->warning('Найдено несколько сотрудников', [
                 'фио' => $name,
                 'количество' => $employeeCount,
                 'ids' => $ids,
                 'цех' => $cehName,
+                'метод_поиска' => $searchMethod,
             ]);
 
             $this->csvData[] = [
@@ -258,7 +324,7 @@ class SendEducationCredentialsCommand extends Command
                 $login,
                 'Дубликат',
                 implode(', ', $ids),
-                "Найдено {$employeeCount} совпадений",
+                "Найдено {$employeeCount} совпадений по {$searchMethod}",
             ];
 
             // Добавляем в примеры для dry-run (первые 50)
@@ -266,7 +332,7 @@ class SendEducationCredentialsCommand extends Command
                 $this->dryRunExamples[] = [
                     'фио' => $name,
                     'логин' => $login,
-                    'статус' => "⚠️  Дубликат ({$employeeCount} совпадений)",
+                    'статус' => "⚠️  Дубликат ({$employeeCount} совпадений) - {$searchMethod}",
                     'текст' => 'Пропущено',
                 ];
             }
@@ -281,8 +347,8 @@ class SendEducationCredentialsCommand extends Command
             Log::channel('credentials_send')->info('Сотрудник не найден в БД', [
                 'фио' => $name,
                 'логин' => $login,
-                'нормализованное_фио' => $normalizedName,
                 'цех' => $cehName,
+                'метод_поиска' => $searchMethod,
             ]);
 
             // Логирование в отдельный файл для незнайденных
@@ -291,7 +357,7 @@ class SendEducationCredentialsCommand extends Command
                 'фио' => $name,
                 'логин' => $login,
                 'пароль' => $password,
-                'нормализованное_фио' => $normalizedName,
+                'метод_поиска' => $searchMethod,
                 'timestamp' => now()->toDateTimeString(),
             ]);
 
@@ -301,7 +367,7 @@ class SendEducationCredentialsCommand extends Command
                 $login,
                 'Не найден',
                 '',
-                'Отсутствует в БД',
+                "Отсутствует в БД (поиск по {$searchMethod})",
             ];
 
             // Добавляем в примеры для dry-run (первые 50)
@@ -310,7 +376,7 @@ class SendEducationCredentialsCommand extends Command
                 $this->dryRunExamples[] = [
                     'фио' => $name,
                     'логин' => $login,
-                    'статус' => '❌ Не найден в БД',
+                    'статус' => "❌ Не найден в БД (поиск по {$searchMethod})",
                     'текст' => mb_substr($pushText, 0, 100) . '...',
                 ];
             }
@@ -327,6 +393,7 @@ class SendEducationCredentialsCommand extends Command
             'sotrudnik_id' => $sotrudnik->id,
             'логин' => $login,
             'цех' => $cehName,
+            'метод_поиска' => $searchMethod,
         ]);
 
         $pushText = $this->generatePushText($login, $password);
@@ -336,7 +403,7 @@ class SendEducationCredentialsCommand extends Command
             $this->dryRunExamples[] = [
                 'фио' => $name,
                 'логин' => $login,
-                'статус' => '✅ Найден (ID: ' . $sotrudnik->id . ')',
+                'статус' => "✅ Найден (ID: {$sotrudnik->id}, поиск по {$searchMethod})",
                 'текст' => mb_substr($pushText, 0, 100) . '...',
             ];
         }
