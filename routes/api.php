@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\WialonIngestController;
 use App\Http\Controllers\CeoBlogController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentSignController;
@@ -267,4 +268,6 @@ Route::prefix('remont-brigades')->group(function () {
     Route::get('/group-year', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'groupYear']);
     Route::get('/workshop/{workshopId}', [\App\Http\Controllers\Api\RemontBrigadeController::class, 'workshop']);
 });
+
+Route::post('/wialon/ingest', [WialonIngestController::class, 'ingest']);
 
