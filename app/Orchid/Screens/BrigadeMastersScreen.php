@@ -29,6 +29,7 @@ class BrigadeMastersScreen extends Screen
         return [
             'masters' => BrigadeMaster::withTrashed()
                 ->with(['brigade', 'sotrudnik.position'])
+                ->orderByRaw("FIELD(type, 'workshop', 'brigade')") // Сначала мастера цехов, потом бригад
                 ->orderBy('created_at', 'desc')
                 ->paginate(20),
         ];
