@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GpsDevice;
+use App\Models\RemontBrigade;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -38,7 +39,7 @@ class WialonIngestController extends Controller
         $receivedAt = !empty($data['received_at']) ? Carbon::parse($data['received_at']) : now();
 
         // только последнее состояние (upsert)
-        GpsDevice::updateOrCreate(
+        $gpsDevice = GpsDevice::updateOrCreate(
             ['device_id' => $data['device_id']],
             [
                 'protocol' => $data['protocol'] ?? 'wialon_ips',
@@ -54,6 +55,15 @@ class WialonIngestController extends Controller
                 'raw' => $data['raw'] ?? null,
             ]
         );
+
+        // Обновляем координаты бригады, если устройство привязано к бригаде
+        if ($gpsDevice->brigade_id && $data['lat'] !== null && $data['lon'] !== null) {
+            $gpsDevice->brigade()->update([
+                'latitude' => $data['lat'],
+                'longitude' => $data['lon'],
+                'location_updated_at' => $receivedAt,
+            ]);
+        }
 
         return response()->json(['ok' => true]);
     }
