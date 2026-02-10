@@ -76,4 +76,62 @@ class PushSotrudnikamController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Отправить push-уведомление с сохранением в базу данных
+     *
+     * @param int $sotrudnik_id ID сотрудника
+     * @param array $data Данные уведомления (title, body, body_html, image, data)
+     * @return JsonResponse
+     */
+    public static function sendPushWithSave($sotrudnik_id, array $data): JsonResponse
+    {
+        $sotrudnik = Sotrudniki::find($sotrudnik_id);
+
+        if (!$sotrudnik) {
+            return response()->json(['success' => false, 'message' => 'Сотрудник не найден']);
+        }
+
+        try {
+            // Для БД:
+            // - mini_description = простой текст (как в Firebase)
+            // - body = HTML-версия
+            $textForDb = $data['body'] ?? ''; // Простой текст
+            $htmlForDb = $data['body_html'] ?? $textForDb; // HTML или текст как fallback
+
+            // Сохраняем уведомление в базу данных
+            $push = \App\Models\PushSotrudnikam::create([
+                'lang' => $sotrudnik->lang ?? 'ru',
+                'title' => $data['title'] ?? 'Уведомление',
+                'mini_description' => $textForDb, // Простой текст для превью
+                'body' => $htmlForDb, // HTML для полного просмотра
+                'photo' => $data['image'] ?? null,
+                'sended' => 1,
+                'for_all' => 0,
+                'sender_id' => null,
+                'recipient_id' => $sotrudnik->id,
+                'expiry_date' => now()->addDays(30),
+            ]);
+
+            // Отправляем push через Firebase если есть токен (только простой текст)
+            if ($sotrudnik->fcm_token) {
+                $pushService = new FirebaseNotificationService();
+
+                // Для Firebase используем только простой текст (без HTML)
+                $pushData = [
+                    'title' => $data['title'] ?? 'Уведомление',
+                    'body' => $textForDb, // Простой текст для Firebase
+                    'image' => $data['image'] ?? null,
+                    'data' => array_merge($data['data'] ?? [], ['push_id' => $push->id])
+                ];
+
+                $pushService->sendToToken($sotrudnik->fcm_token, $pushData);
+            }
+
+            return response()->json(['success' => true, 'push_id' => $push->id]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Ошибка при отправке push-уведомления: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Ошибка отправки']);
+        }
+    }
 }

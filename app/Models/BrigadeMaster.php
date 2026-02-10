@@ -17,6 +17,7 @@ class BrigadeMaster extends Model
     protected $fillable = [
         'brigade_id',
         'sotrudnik_id',
+        'type',
         'assigned_at',
     ];
 
@@ -62,5 +63,45 @@ class BrigadeMaster extends Model
     public function isActive(): bool
     {
         return $this->deleted_at === null;
+    }
+
+    /**
+     * Scope для получения только мастеров бригад
+     */
+    public function scopeBrigadeMasters($query)
+    {
+        return $query->where('type', 'brigade');
+    }
+
+    /**
+     * Scope для получения только мастеров цехов
+     */
+    public function scopeWorkshopMasters($query)
+    {
+        return $query->where('type', 'workshop');
+    }
+
+    /**
+     * Проверить, является ли мастером бригады
+     */
+    public function isBrigadeMaster(): bool
+    {
+        return $this->type === 'brigade';
+    }
+
+    /**
+     * Проверить, является ли мастером цеха
+     */
+    public function isWorkshopMaster(): bool
+    {
+        return $this->type === 'workshop';
+    }
+
+    /**
+     * Получить название типа мастера
+     */
+    public function getTypeNameAttribute(): string
+    {
+        return $this->type === 'brigade' ? 'Мастер бригады' : 'Мастер цеха';
     }
 }

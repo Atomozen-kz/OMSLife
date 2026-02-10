@@ -5,6 +5,7 @@ namespace App\Http\Controllers\mobile;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Brigade\GetChecklistItemsRequest;
 use App\Http\Requests\Brigade\SubmitChecklistResponseRequest;
+use App\Jobs\SendBrigadeChecklistNotification;
 use App\Models\BrigadeChecklistItem;
 use App\Models\BrigadeChecklistResponse;
 use App\Models\BrigadeChecklistSession;
@@ -148,6 +149,55 @@ class BrigadeChecklistController extends Controller
                 }
 
                 DB::commit();
+
+                // Отправляем уведомления мастерам цеха
+                try {
+                    $brigade = $master->brigade;
+                    if ($brigade && $brigade->parent_id) {
+                        // Получаем всех активных мастеров цеха
+                        $workshopMasters = BrigadeMaster::where('brigade_id', $brigade->parent_id)
+                            ->where('type', 'workshop')
+                            ->whereNull('deleted_at')
+                            ->with('sotrudnik')
+                            ->get();
+
+                        foreach ($workshopMasters as $workshopMaster) {
+                            if ($workshopMaster->sotrudnik && $workshopMaster->sotrudnik->id) {
+                                $messageData = [
+                                    'title' => '✅ Чек-лист заполнен',
+                                    'body' => sprintf(
+                                        'Мастер %s (бригада: %s) заполнил чек-лист. Скважина: %s, ТК: %s',
+                                        $session->full_name_master,
+                                        $session->brigade_name,
+                                        $session->well_number,
+                                        $session->tk
+                                    ),
+                                    'image' => null,
+                                    'data' => [
+                                        'type' => 'brigade_checklist',
+                                        'session_id' => $session->id,
+                                        'brigade_id' => $session->brigade_id,
+                                        'master_name' => $session->full_name_master,
+                                    ],
+                                    // Дополнительные данные для генерации HTML
+                                    'brigade_name' => $session->brigade_name,
+                                    'well_number' => $session->well_number,
+                                    'tk' => $session->tk,
+                                    'completed_at' => $now->format('d.m.Y H:i'),
+                                ];
+
+                                // Отправляем уведомление через Job для асинхронной обработки
+                                SendBrigadeChecklistNotification::dispatch(
+                                    $workshopMaster->sotrudnik->id,
+                                    $messageData
+                                );
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Логируем ошибку отправки уведомлений, но не прерываем процесс
+                    Log::warning('Не удалось поставить в очередь уведомления мастерам цеха: ' . $e->getMessage());
+                }
 
                 return response()->json([
                     'success' => true,
